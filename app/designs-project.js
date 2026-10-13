@@ -167,6 +167,35 @@ function ngon(c, r, n, rotDeg){
   return out;
 }
 
+/* Soften the corners of a convex side profile: each vertex that is not a
+   right angle is replaced by a tangent arc (r mm, capped so it never eats more
+   than 40% of an adjoining edge). Right angles are kept so joints and bearing
+   faces still fit. Keeps the polygon convex. */
+function roundPoly(poly, rAcute, rObtuse){
+  var n = poly.length, out = [];
+  for(var i=0;i<n;i++){
+    var a = poly[(i+n-1)%n], b = poly[i], c = poly[(i+1)%n];
+    var v1 = [a[0]-b[0], a[1]-b[1]], v2 = [c[0]-b[0], c[1]-b[1]];
+    var l1 = Math.hypot(v1[0],v1[1]), l2 = Math.hypot(v2[0],v2[1]);
+    var cs = (v1[0]*v2[0]+v1[1]*v2[1])/(l1*l2);
+    var th = Math.acos(Math.max(-1, Math.min(1, cs)));          /* interior angle */
+    if(Math.abs(th - Math.PI/2) < 0.02 || th > 3.1){ out.push(b); continue; }
+    var r = th < Math.PI/2 ? rAcute : rObtuse;
+    var t = r/Math.tan(th/2);                                    /* tangent length */
+    t = Math.min(t, 0.4*l1, 0.4*l2); r = t*Math.tan(th/2);
+    var p1 = [b[0]+v1[0]/l1*t, b[1]+v1[1]/l1*t], p2 = [b[0]+v2[0]/l2*t, b[1]+v2[1]/l2*t];
+    var bis = [v1[0]/l1+v2[0]/l2, v1[1]/l1+v2[1]/l2], bl = Math.hypot(bis[0],bis[1]);
+    var cc = [b[0]+bis[0]/bl*r/Math.sin(th/2), b[1]+bis[1]/bl*r/Math.sin(th/2)];
+    var s0 = Math.atan2(p1[1]-cc[1], p1[0]-cc[0]), s1 = Math.atan2(p2[1]-cc[1], p2[0]-cc[0]);
+    var da = s1 - s0; while(da > Math.PI) da -= 2*Math.PI; while(da < -Math.PI) da += 2*Math.PI;
+    var k = Math.max(3, Math.ceil(Math.abs(da)/0.35));
+    for(var j=0;j<=k;j++){ var s = s0 + da*j/k; out.push([cc[0]+r*Math.cos(s), cc[1]+r*Math.sin(s)]); }
+  }
+  return out;
+}
+/* parts whose pointed corners are softened (EN 581-1 asks for rounded or chamfered edges) */
+var SOFTEN = { F3:[10,6], T4:[8,6], T5:[8,6] };
+
 DESIGNS.folding = {
   id:'folding', name:'Folding picnic bench',
   blurb:'Picnic table that folds into a backed bench. Four pivots, three rigid assemblies, hard stops and lock pins at both ends.',
@@ -214,7 +243,8 @@ DESIGNS.folding = {
     function lift(asm){ var v = tf(asm)([0,1]), o = tf(asm)([0,0]); return [0, v[0]-o[0], v[1]-o[1]]; }
 
     F.parts.forEach(function(p){
-      var poly = p.poly.map(tf(p.asm));
+      var sf = SOFTEN[p.id], base = sf ? roundPoly(p.poly, sf[0], sf[1]) : p.poly;
+      var poly = base.map(tf(p.asm));
       var o = { cut:p.blank, flat:p.flat, W:p.W, note:p.note, partId:p.id };
       if(p.side === 'C'){
         o.cut = p.blank + 2*d; o.flat = null; o.T = 38;
@@ -253,6 +283,7 @@ DESIGNS.folding = {
       { s: V.jams===0 ? 'ok':'fail', t:'<b>Mechanism, hands-off.</b> Front seat hangs from A under gravity, rides the floor and the rear frame, confined between T4 (0°) and T5 (100°). No jams.', v: V.jams+' jams' },
       { s: V.fasteners===0 ? 'ok':'fail', t:'<b>Fasteners in 3D.</b> Screws, M8 bolts, pivot counterbores and pin holes checked against each other.', v: V.fasteners+' clashes' },
       { s:'ok', t:'<b>Endpoints locked.</b> Table: '+V.rigidity.table['+1°']+' / pin stops folding. Bench: '+V.rigidity.bench['+1°']+' and '+V.rigidity.bench['−1°']+' with the pin in.', v:'pin r '+V.pin.radius_from_A+' mm' },
+      { s:'ok', t:'<b>Pointed corners softened.</b> F3 brace tip R10, T4 and T5 stop corners R6–R8, so no sharp tips stick out at knee or hand height. EN 581-1 (outdoor seating and tables) asks for rounded or chamfered edges; the drawn arcs are a guide — also ease every exposed arris by hand or router.', v:'3 parts' },
       { s:'warn', t:'<b>Not load-rated.</b> T4 reacts ≈4 kN per side in the worst case (two adults on the front seat, leaning on the table, slippery floor). Glue on T4/T1 is mandatory. Proof-load a prototype before release — see design-review.md.', v:'prototype' },
       { s: mode==='FOLDING' ? 'warn':'ok', t:'<b>Pose: '+mode+'.</b> '+
           (atTable ? 'Pins in the "table" holes; F1 bears on T4.' : atBench ? 'Pins in the "bench" holes; F1 bears on T5, T2 on S1, S2 on R3.' :
@@ -272,6 +303,8 @@ DESIGNS.folding = {
         { part:'Pivots A, B', detail:'Bore Ø18, press 14/18 bushings flush with the moving faces, Ø14 stainless sleeve 54.5 long, M10×70 + nyloc tightened fully, 3 mm UHMW thrust washer. Counterbore Ø30: 10 deep head side, 15 deep nut side.' },
         { part:'Lock pin', detail:'Match-drill Ø10.5 through F1 into T1 in each locked pose (table, then bench).' },
         { part:'Stops', detail:'T4 flush with the table end, bearing on F1 upper flank; T5 under the tabletop, bearing on F1 rear flank in bench pose; S1 lapped full height on R4. Glue + screws; T4 also 1 × M8.' },
+        { part:'Lock pins', detail:'Tether each Ø10 pin to the frame with a short stainless cable so it cannot be lost while the bench is converted; common on commercial convertible-bench plans.' },
+        { part:'Weather detailing', detail:'Seal all cut end grain (stop blocks, bearer ends, bored holes) with preservative or wax sealer before assembly, and use stainless or hot-dip galvanised fasteners only — electroplated screws corrode in treated timber.' },
         { part:'Sliding corner', detail:'R6 round-over on R3 front-top corner; ease S2 lower arrises 3 mm.' },
         { part:'Drawings', detail:'folding-P1/rev2/: connections-*.svg, pivot-sections.svg, drilling.svg, joint-schedule.csv, design-review.md.' }
       ]
