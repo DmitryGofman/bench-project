@@ -29,6 +29,18 @@ Four clean-sheet bench ↔ table designs built on a shared engine (`concepts-pro
 | C3 Level-lift | top on parallel links, stays level | table / daybed with fixed back | 1.5 m × 1.8 m |
 | C4 Lift-off leaves | none: two loose leaves | table / backed lounger / flat daybed | 1.6 m × 1.8 m |
 
+## Folding bench: parametric, reverse-engineered
+The Rev 2 generator's data (side profile, pivots, hands-off path) is embedded in `index.html`. Its hands-off path is a quasi-static gravity solution: the front frame hangs from pivot A and, at each table angle, settles at the lowest centre of gravity it can reach without entering the floor or the other frames. `foldingSolve()` in `designs-project.js` re-derives this; it reproduces the stored path to 0.07° mean (1.25° max). The profile is therefore parametric, and every change is re-solved and re-swept live:
+- **Front seat:** 0–3 extra boards.
+- **Tabletop / backrest:** 0–2 extra boards at the front edge, 0–1 at the back edge.
+- **Height:** −40 to +100 mm; the legs are lengthened along their own axis.
+- **Tidy legs:** the R4 tie is cut flush with the back leg and the R5 foot is chamfered.
+
+An extra rear-seat board is not offered: it hits the front seat in bench pose (38 mm).
+
+## Assembly drawing
+The **Assembly** view (and `assembly-drawing.svg`) is an exploded isometric with numbered balloons, the BOM and a title block. Balloon numbers match the BOM sheet and the Buy / BOM tab.
+
 ## Buy / BOM, files, drawing BOM (`extras-project.js`, patched in by `make_extras.py`)
 - **Buy / BOM tab:**
   - A shopping list by category (timber, bolts/nuts/washers, pivot bearings, lock pins, wood screws, glue & finish, tools), with exact names, catalog / standard numbers, quantities from the live model, supplier links, phones and listed prices. Also downloads as CSV.

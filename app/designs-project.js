@@ -224,50 +224,148 @@ function satDepth(A, B){
    keeps 86 of its 100 mm. Only material is removed, so no new contact can appear. */
 var TRIM = { F3:[[1,0], -765.1], T4:[[0,1], 602] };
 
-/* the folding side profile with the user's seat extension: n extra front-seat boards
-   (95 mm pitch) lengthen F2 forward; returns [{id,name,g,asm,side,x0,x1,poly,...}] */
-function foldingProfile(F, seatX){
-  var ext = 95*seatX, out = [];
+/* ===== PARAMETRIC GEOMETRY — reverse-engineered from the Rev 2 generator ======
+   The generator's data (side profile, pivots A and B, the hands-off path) is
+   embedded above as FOLDING_P1. Its hands-off path turns out to be a
+   quasi-static gravity solution: the front assembly hangs from pivot A and,
+   at every table angle, settles at the lowest centre of gravity it can reach
+   without entering the floor, the rear frame or the top frame. foldingSolve()
+   below re-derives exactly that (it reproduces the stored path to ≈ 0.1° mean),
+   so the profile can now be changed and the mechanism re-solved and re-swept:
+     seatX  extra front-seat boards (F2 grows forward)
+     rearF  extra rear-seat board at the front of S3 (R3 grows forward)
+     topF / topB  extra tabletop boards at the front / back edge (T1 grows)
+     h      height: every leg lengthened (or shortened) along its own axis
+     legs   tidy legs: R4 tie cut flush with the back leg, R5 foot chamfered */
+function lineHalf(a, b, keep){
+  var n = [-(b[1]-a[1]), b[0]-a[0]], l = Math.hypot(n[0], n[1]); n = [n[0]/l, n[1]/l];
+  var c = n[0]*a[0] + n[1]*a[1];
+  if(n[0]*keep[0] + n[1]*keep[1] < c){ n = [-n[0], -n[1]]; c = -c; }
+  return [n, c];
+}
+function perim(poly){ var s = 0; for(var i=0;i<poly.length;i++){ var a=poly[i], b=poly[(i+1)%poly.length]; s += Math.hypot(b[0]-a[0], b[1]-a[1]); } return s; }
+var FOLD_GEOM = {};
+function foldingGeometry(F, o){
+  o = { seatX:o.seatX|0, rearF:o.rearF|0, topF:o.topF|0, topB:o.topB|0, h:+o.h||0, legs:o.legs !== false };
+  var key = JSON.stringify(o);
+  if(FOLD_GEOM[key]) return FOLD_GEOM[key];
+  var h = o.h, out = [];
   F.parts.forEach(function(p){
-    var poly = p.poly;
+    var poly = p.poly.map(function(q){ return [q[0], q[1]]; }), p0 = perim(poly);
     if(TRIM[p.id]) poly = clipHalf(poly, TRIM[p.id][0], TRIM[p.id][1]);
-    if(p.id === 'F2') poly = poly.map(function(q){ return q[0] < -700 ? [q[0] - ext, q[1]] : q; });
+    if(p.id === 'F2' && o.seatX) poly = poly.map(function(q){ return q[0] < -700 ? [q[0] - 95*o.seatX, q[1]] : q; });
+    if(p.id === 'R3' && o.rearF) poly = poly.map(function(q){ return q[0] < 0 ? [q[0] - 95*o.rearF, q[1]] : q; });
+    if(p.id === 'T1' && o.topF)  poly = poly.map(function(q){ return q[0] < -400 ? [q[0] - 95*o.topF, q[1]] : q; });
+    if(p.id === 'T1' && o.topB)  poly = poly.map(function(q){ return q[0] > 0 ? [q[0] + 95*o.topB, q[1]] : q; });
+    if(o.legs && p.id === 'R4'){ var hp = lineHalf([324.7, 0], [284.7, 412], [260, 200]); poly = clipHalf(poly, hp[0], hp[1]); }
+    if(o.legs && p.id === 'R5') poly = clipHalf(poly, [-Math.SQRT1_2, -Math.SQRT1_2], -Math.SQRT1_2*(450 + 39));
+    if(h && (p.id === 'R1' || p.id === 'R2' || p.id === 'F1')){
+      /* lengthen along the leg: each floor vertex slides down its edge to the next vertex */
+      poly = poly.map(function(q, i){
+        if(q[1] >= 1) return q;
+        var a = poly[(i + poly.length - 1) % poly.length], b = poly[(i+1) % poly.length], nb = a[1] >= 1 ? a : b;
+        var t = -h/(nb[1] - q[1]); return [q[0] + t*(nb[0] - q[0]), q[1] - h];
+      });
+    }
+    if(h) poly = poly.map(function(q){ return [q[0], q[1] + (p.id === 'R5' ? 0 : h)]; });
     var sf = SOFTEN[p.id]; if(sf) poly = roundPoly(poly, sf[0], sf[1]);
-    out.push(Object.assign({}, p, { poly:poly }));
+    var grow = (perim(poly) - p0)/2;
+    out.push(Object.assign({}, p, { poly:poly, cutAdj: Math.abs(grow) > 0.5 && !TRIM[p.id] && !SOFTEN[p.id] ? Math.round(grow) : 0,
+      changed: poly !== p.poly && (TRIM[p.id] || Math.abs(grow) > 0.5 || (o.legs && (p.id === 'R4' || p.id === 'R5'))) }));
   });
-  var s2 = F.parts.filter(function(p){ return p.id === 'S2'; })
-                  .sort(function(a,b){ return a.poly[0][0] - b.poly[0][0]; })[0];
-  for(var k=1;k<=seatX;k++)
-    out.push(Object.assign({}, s2, { name:'S2 · Front seat board (extension)', ext:true,
-      poly: s2.poly.map(function(q){ return [q[0] - 95*k, q[1]]; }) }));
-  return out;
+  function extra(id, pick, dy, n, name){
+    var src = out.filter(function(p){ return p.id === id; }).sort(function(a,b){ return a.poly[0][0] - b.poly[0][0]; });
+    src = pick === 'first' ? src[0] : src[src.length - 1];
+    for(var k=1;k<=n;k++) out.push(Object.assign({}, src, { name:name, ext:true, poly: src.poly.map(function(q){ return [q[0] + dy*k, q[1]]; }) }));
+  }
+  extra('S2', 'first', -95, o.seatX, 'S2 · Front seat board (extension)');
+  extra('S3', 'first', -95, o.rearF, 'S3 · Rear seat board (extension)');
+  extra('S4', 'first', -95, o.topF,  'S4 · Table / back board (extension)');
+  extra('S4', 'last',   95, o.topB,  'S4 · Table / back board (extension)');
+  var G = { o:o, key:key, parts:out, A0:[F.A0[0], F.A0[1] + h], B:[F.B[0], F.B[1] + h], h:h,
+            marks: F.marks.map(function(m){ return Object.assign({}, m, { z: m.z + (m.part === 'R5' ? 0 : h) }); }) };
+  G.isBase = key === JSON.stringify({ seatX:0, rearF:0, topF:0, topB:0, h:0, legs:false });
+  G.handsoff = foldingSolve(G);
+  return (FOLD_GEOM[key] = G);
 }
-/* front-seat angle on the hands-off path (simulated for the Rev 2 profile) */
-function foldingPhi(F, th, motion){
-  if(motion === 'guided') return 0;
-  var H = F.handsoff, i = 0;
-  while(i < H.length-2 && H[i+1][0] > th) i++;
-  var a = H[i], b = H[i+1], f = (a[0]===b[0]) ? 0 : (th - a[0])/(b[0]-a[0]);
-  return a[1] + f*(b[1]-a[1]);
-}
-function foldingTf(F, th, phi){
-  var A = rot2(F.A0, F.B, th), dA = [A[0]-F.A0[0], A[1]-F.A0[1]];
+function foldingTf(G, th, phi){
+  var A = rot2(G.A0, G.B, th), dA = [A[0]-G.A0[0], A[1]-G.A0[1]];
   return function(asm){
-    if(asm === 'top')   return function(q){ return rot2(q, F.B, th); };
-    if(asm === 'front') return function(q){ var r = rot2(q, F.A0, phi); return [r[0]+dA[0], r[1]+dA[1]]; };
+    if(asm === 'top')   return function(q){ return rot2(q, G.B, th); };
+    if(asm === 'front') return function(q){ var r = rot2(q, G.A0, phi); return [r[0]+dA[0], r[1]+dA[1]]; };
     return function(q){ return q; };
   };
 }
+function xOverlap(a, b){ return a.x0 < b.x1 - 0.01 && b.x0 < a.x1 - 0.01; }
+/* the hands-off path, re-derived: 1° steps, φ searched ±12° round the last value
+   in 0.25° steps, lowest front-assembly centre of gravity that collides with nothing */
+function foldingSolve(G){
+  var front = G.parts.filter(function(p){ return p.asm === 'front'; });
+  var pairs = [];
+  front.forEach(function(f){ G.parts.forEach(function(q){ if(q.asm !== 'front' && xOverlap(f, q)) pairs.push([f, q]); }); });
+  var M = 0, Yc = 0, Zc = 0;
+  front.forEach(function(p){
+    var A = 0, cy = 0, cz = 0, P = p.poly;
+    for(var i=0;i<P.length;i++){ var a=P[i], b=P[(i+1)%P.length], c=a[0]*b[1]-b[0]*a[1]; A+=c; cy+=(a[0]+b[0])*c; cz+=(a[1]+b[1])*c; }
+    var m = Math.abs(A/2)*(p.x1 - p.x0)*(p.side === 'C' ? 1 : 2); M += m; Yc += m*cy/(3*A); Zc += m*cz/(3*A);
+  });
+  var Gc = [Yc/M, Zc/M], path = [], phi = 0, stuck = null;
+  /* bounding boxes of the fixed partners, for a cheap early-out */
+  function bb(P){ var b=[1e9,1e9,-1e9,-1e9]; P.forEach(function(q){ if(q[0]<b[0])b[0]=q[0]; if(q[1]<b[1])b[1]=q[1]; if(q[0]>b[2])b[2]=q[0]; if(q[1]>b[3])b[3]=q[1]; }); return b; }
+  function feasible(th, ph){
+    var tf = foldingTf(G, th, ph), cache = {};
+    for(var i=0;i<front.length;i++){
+      var P1 = front[i].poly.map(tf('front')); cache[i] = P1;
+      for(var j=0;j<P1.length;j++) if(P1[j][1] < -0.5) return false;
+    }
+    for(i=0;i<pairs.length;i++){
+      var fi = front.indexOf(pairs[i][0]), A = cache[fi], Q = pairs[i][1].poly.map(tf(pairs[i][1].asm));
+      var ba = bb(A), bq = bb(Q);
+      if(ba[0] > bq[2] || bq[0] > ba[2] || ba[1] > bq[3] || bq[1] > ba[3]) continue;
+      if(satDepth(A, Q) > 0.5) return false;
+    }
+    return true;
+  }
+  /* gravity alone would turn the front assembly until its CoG hangs straight below A */
+  var v = [Gc[0] - G.A0[0], Gc[1] - G.A0[1]];
+  var phiStar = -90 - Math.atan2(v[1], v[0])*180/Math.PI;
+  while(phiStar - 0 > 180) phiStar -= 360; while(phiStar - 0 < -180) phiStar += 360;
+  for(var f=0; f<=100; f++){
+    var th = -f, ph = phi;
+    if(!feasible(th, ph)){
+      /* pushed by a contact: nearest feasible angle either side, lower CoG wins */
+      var found = null;
+      for(var k=1; k<=48 && !found; k++){
+        var cands = [phi + k*0.25, phi - k*0.25].filter(function(c){ return feasible(th, c); });
+        if(cands.length) found = cands.sort(function(a,b){ return Math.abs(a - phiStar) - Math.abs(b - phiStar); })[0];
+      }
+      if(found == null){ stuck = th; break; }
+      ph = found;
+    }
+    /* settle: walk towards the free-hanging angle while nothing is hit */
+    var dir = phiStar > ph ? 1 : -1;
+    while(Math.abs(phiStar - ph) > 0.125 && feasible(th, ph + dir*0.25)) ph += dir*0.25;
+    phi = ph; path.push([th, phi]);
+  }
+  path.stuck = stuck;
+  return path;
+}
+function foldingPhi(G, th, motion){
+  if(motion === 'guided') return 0;
+  var H = G.handsoff; if(!H.length) return 0;
+  var f = Math.max(0, Math.min(H.length - 1, -th)), i = Math.floor(f), t = f - i;
+  if(i >= H.length - 1) return H[H.length - 1][1];
+  return H[i][1] + t*(H[i+1][1] - H[i][1]);
+}
 /* LIVE sweep of this exact geometry: 0–100° in 1° steps, both motions, every pair of
    parts from different assemblies whose X ranges overlap, plus the floor. */
-var FOLD_SWEEP = {};
-function foldingSweep(F, seatX){
-  if(FOLD_SWEEP[seatX]) return FOLD_SWEEP[seatX];
-  var prof = foldingProfile(F, seatX), hits = {}, n = 0;
-  function xr(p){ return p.side === 'C' ? [p.x0, p.x1] : [p.x0, p.x1]; }
+function foldingSweep(G){
+  if(G.sweep) return G.sweep;
+  var prof = G.parts, hits = {}, n = 0;
   ['guided','hands'].forEach(function(motion){
     for(var f=0; f<=100; f++){
-      var th = -f, tf = foldingTf(F, th, foldingPhi(F, th, motion));
+      if(motion === 'hands' && G.handsoff.stuck != null && -f <= G.handsoff.stuck) break;
+      var th = -f, tf = foldingTf(G, th, foldingPhi(G, th, motion));
       var cur = prof.map(function(p){ return p.poly.map(tf(p.asm)); });
       for(var i=0;i<prof.length;i++){
         var A = prof[i];
@@ -277,19 +375,17 @@ function foldingSweep(F, seatX){
         }
         for(var j=i+1;j<prof.length;j++){
           var B = prof[j];
-          if(A.asm === B.asm) continue;
-          var ra = xr(A), rb = xr(B);
-          if(!(ra[0] < rb[1] - 0.01 && rb[0] < ra[1] - 0.01)) continue;
-          var d = satDepth(cur[i], cur[j]);
-          if(d > 0.5) note(A.name+' ↔ '+B.name, d, f, motion);
+          if(A.asm === B.asm || !xOverlap(A, B)) continue;
+          var dd = satDepth(cur[i], cur[j]);
+          if(dd > 0.5) note(A.name+' ↔ '+B.name, dd, f, motion);
         }
       }
       n++;
     }
   });
+  if(G.handsoff.stuck != null) note('hands-off: the front seat jams', 0, -G.handsoff.stuck, 'hands');
   function note(k, d, f, m){ if(!hits[k] || hits[k].d < d) hits[k] = { k:k, d:d, f:f, m:m }; }
-  var list = Object.keys(hits).map(function(k){ return hits[k]; });
-  return (FOLD_SWEEP[seatX] = { hits:list, steps:n });
+  return (G.sweep = { hits:Object.keys(hits).map(function(k){ return hits[k]; }), steps:n });
 }
 
 /* HARDWARE MODELS — simple but true-to-size stacks along the bolt axis (X).
@@ -365,7 +461,11 @@ DESIGNS.folding = {
   ],
   schema:[
     {k:'L',     label:'Length', group:'Dimensions', type:'range', min:1200, max:3000, step:10, def:2000, unit:'mm'},
-    {k:'seatX', label:'Seat depth: extra front boards', group:'Dimensions', type:'range', min:0, max:3, step:1, def:2, unit:'× 95 mm'},
+    {k:'seatX', label:'Front seat: extra boards', group:'Dimensions', type:'range', min:0, max:3, step:1, def:2, unit:'× 95 mm'},
+    {k:'topF',  label:'Tabletop / backrest: extra boards (front edge)', group:'Dimensions', type:'range', min:0, max:2, step:1, def:0, unit:'× 95 mm'},
+    {k:'topB',  label:'Tabletop / backrest: extra board (back edge)', group:'Dimensions', type:'range', min:0, max:1, step:1, def:0, unit:'× 95 mm'},
+    {k:'hAdj',  label:'Height (all legs longer / shorter)', group:'Dimensions', type:'range', min:-40, max:100, step:10, def:0, unit:'mm'},
+    {k:'legs',  label:'Tidy legs (tie flush, chamfered foot)', group:'Dimensions', type:'bool', def:true},
     {k:'fold',  label:'Fold, table → bench', group:'Mechanism', type:'range', min:0, max:100, step:1, def:0, unit:'°'},
     {k:'motion',label:'Front seat while folding', group:'Mechanism', type:'select', def:'hands',
        options:[{v:'hands',label:'Hands-off'},{v:'guided',label:'Held level'}]},
@@ -398,19 +498,16 @@ DESIGNS.folding = {
 
     /* front seat orientation: held level, or the simulated hands-off path */
     var seatX = Math.max(0, Math.min(3, Math.round(P.seatX || 0)));
-    var phi = foldingPhi(F, th, P.motion);
-    var A = rot2(F.A0, F.B, th), dA = [A[0]-F.A0[0], A[1]-F.A0[1]];
-    function tf(asm){
-      if(asm === 'top')   return function(q){ return rot2(q, F.B, th); };
-      if(asm === 'front') return function(q){ var r = rot2(q, F.A0, phi); return [r[0]+dA[0], r[1]+dA[1]]; };
-      return function(q){ return q; };
-    }
+    var GO = { seatX:seatX, rearF:Math.round(P.rearF || 0), topF:Math.round(P.topF || 0), topB:Math.round(P.topB || 0),
+               h:Math.round(P.hAdj || 0), legs:P.legs !== false };
+    var G = foldingGeometry(F, GO);
+    var phi = foldingPhi(G, th, P.motion);
+    var tf = foldingTf(G, th, phi);
     function lift(asm){ var v = tf(asm)([0,1]), o = tf(asm)([0,0]); return [0, v[0]-o[0], v[1]-o[1]]; }
 
-    foldingProfile(F, seatX).forEach(function(p){
+    G.parts.forEach(function(p){
       var poly = p.poly.map(tf(p.asm));
-      var o = { cut:p.blank, flat:(TRIM[p.id] || p.id === 'F2') ? null : p.flat, W:p.W, note:p.note, partId:p.id };
-      if(p.id === 'F2') o.cut = p.blank + 95*seatX;
+      var o = { cut:p.blank + (p.cutAdj || 0), flat:p.changed ? null : p.flat, W:p.W, note:p.note, partId:p.id };
       if(p.side === 'C'){
         o.cut = p.blank + 2*d; o.flat = null; o.T = 38;
         ctx.prism(p.name, p.g, p.x0 - d, p.x1 + d, poly, lift(p.asm), o);
@@ -422,7 +519,7 @@ DESIGNS.folding = {
 
     var atTable = P.fold <= 0, atBench = P.fold >= 100;
     if(P.conn){
-      F.marks.forEach(function(m){
+      G.marks.forEach(function(m){
         var c = tf(m.asm)([m.y, m.z]);
         [1,-1].forEach(function(sx){
           var xf = sx*(m.x + d), poly, h, g, nm;
@@ -441,16 +538,22 @@ DESIGNS.folding = {
       });
     }
 
-    var SW = foldingSweep(F, seatX);
+    var SW = foldingSweep(G);
     var V = F.validation, mode = atTable ? 'TABLE' : atBench ? 'BENCH' : 'FOLDING';
     var checks = [
       { s: SW.hits.length ? 'fail' : 'ok',
         t: SW.hits.length ? '<b>Live sweep: '+SW.hits.length+' clash(es)</b> for this seat depth — '+SW.hits.slice(0,3).map(function(h){
               return h.k+' by '+h.d.toFixed(0)+' mm at '+h.f+'° ('+(h.m === 'guided' ? 'held level' : 'hands-off')+')'; }).join('; ')
-           : '<b>Live sweep clean</b> for this exact geometry (seat +'+(95*seatX)+' mm, trimmed stops): 0–100° in 1° steps, held level and hands-off, '+
+           : '<b>Live sweep clean</b> for this exact geometry: 0–100° in 1° steps, held level and hands-off, '+
              'every pair of moving parts that share X tested for overlap, plus the floor.'+
-             (seatX ? ' The hands-off path itself was simulated for the Rev 2 seat; with a longer seat, steer it by hand the first time.' : ''),
+             ' The hands-off path is re-solved for these dimensions (front frame settling under gravity against the floor and the other frames; '+
+             'reproduces the original generator to 0.07° mean).',
         v: SW.hits.length+' clashes' },
+      { s: (450 + GO.h) > 490 || (450 + GO.h) < 410 ? 'warn' : 'ok',
+        t: '<b>Sizes.</b> Seat '+(450 + GO.h)+' high (comfortable 420–470), table '+(755 + GO.h)+' high (dining 720–760), '+
+           'table '+(469 + 95*(GO.topF + GO.topB))+' deep, bench seat '+(374 + 95*seatX)+' deep, backrest '+(469 + 95*(GO.topF + GO.topB))+' tall. '+
+           'Table-mode seats: front '+(184 + 95*seatX)+' deep, rear 184 deep (the rear seat cannot grow: an extra board hits the front seat in bench pose).',
+        v: (450 + GO.h)+' / '+(755 + GO.h) },
       { s: V.guided===0 ? 'ok':'fail', t:'<b>Mechanism, held level.</b> 0–100° swept in 0.25° steps against every timber pair.', v: V.guided+' clashes' },
       { s: V.jams===0 ? 'ok':'fail', t:'<b>Mechanism, hands-off.</b> Front seat hangs from A under gravity, rides the floor and the rear frame, confined between T4 (0°) and T5 (100°). No jams.', v: V.jams+' jams' },
       { s: V.fasteners===0 ? 'ok':'fail', t:'<b>Fasteners in 3D.</b> Screws, M8 bolts, pivot counterbores and pin holes checked against each other.', v: V.fasteners+' clashes' },
@@ -485,10 +588,10 @@ DESIGNS.folding = {
         { label:'Front seat boards',          span: 2*(634 + d), b:89, h:38, tributary:95, load:2 },
         { label:'Rear seat boards',           span: 2*(552 + d), b:89, h:38, tributary:95, load:2 }
       ],
-      headline: P.L+' × 469 mm tabletop · 755 high · seats 450 · bench seat '+(374 + 95*seatX)+' deep',
+      headline: P.L+' × '+(469 + 95*(GO.topF + GO.topB))+' mm tabletop · '+(755 + GO.h)+' high · seats '+(450 + GO.h)+' · bench seat '+(374 + 95*seatX)+' deep',
       headline2: 'Rev 3 · '+mode+(mode==='FOLDING' ? ' '+(-th)+'° · pins out' : ' · pins in')+
                  ' · M12 bushed pivots · Ø12 pins · not load-rated',
-      hardware: foldingHardware(frames, seatX), joints: F.joints, interfaces: F.interfaces, checks: checks,
+      hardware: foldingHardware(frames, seatX + GO.topF + GO.topB), joints: F.joints, interfaces: F.interfaces, checks: checks,
       fabrication: [
         { part:'Pivots A, B', detail:'Bore Ø22, press 18/22 bushings flush with the moving faces, Ø18 × 2 stainless sleeve 54.5 long, M12 bolt + nyloc tightened fully (the bolt clamps the sleeve, not the timber), 3 mm UHMW thrust washer Ø48. Counterbore Ø36: 10 deep head side, 15 deep nut side.' },
         { part:'Lock pin', detail:'Match-drill Ø12.5 through F1 into T1 in each locked pose (table, then bench).' },
