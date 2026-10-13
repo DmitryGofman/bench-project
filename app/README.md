@@ -28,3 +28,5 @@ python3 ../folding-P1/rev2/build.py   # regenerates geometry, drawings and app-f
 python3 make_app.py                   # source + designs-project.js + folding data -> index.html
 ```
 Edit `designs-project.js`, not `index.html`.
+
+Live site: https://dmitrygofman.github.io/bench-project/
