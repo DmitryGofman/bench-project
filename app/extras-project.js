@@ -387,123 +387,232 @@ function itemKeyForPart(p, items){
   return null;
 }
 function svgAssembly(model, opts){
+  /* Drawing conventions follow the engineering-drawing skill: heavy visible outline,
+     thin phantom (dashed) assembly lines, centre lines (dash-dot) on bolt axes,
+     filled leader dots, ISO-style title block, numbered notes. */
   opts = opts || {};
   var E = opts.explode != null ? opts.explode : 260, items = bomItems(model), byKey = {};
   items.forEach(function(it){ byKey[it.key] = it; });
-  var R2 = Math.SQRT2, R6 = Math.sqrt(6);
-  function P3(x, y, z){ return [ (x + y)/R2, -(-x + y + 2*z)/R6, (x - y + z)/Math.sqrt(3) ]; }
-  var faces = [], targets = {};
-  /* side-frame layers fan apart: the further a part sits from the centre, the further it flies */
+  var R2 = Math.SQRT2, R6 = Math.sqrt(6), R3 = Math.sqrt(3);
+  function P3(x, y, z){ return [ (x + y)/R2, -(-x + y + 2*z)/R6, (x - y + z)/R3 ]; }
+
+  /* ---- 1. every drawn part with its explode displacement ---- */
   var xref = Infinity;
   model.parts.forEach(function(p){ if(p.prism && p.ex && p.ex[0] && p.bom !== false)
     xref = Math.min(xref, Math.abs((p.prism.x0 + p.prism.x1)/2)); });
+  var recs = [];
   model.parts.forEach(function(p){
     if(!p.prism) return;
     var key = itemKeyForPart(p, items); if(!key || !byKey[key]) return;
     var e = p.ex || [0,0,0], xc = (p.prism.x0 + p.prism.x1)/2, sg = xc < 0 ? -1 : 1;
-    var dx = e[0] ? e[0]*E*0.6 + sg*Math.max(0, Math.abs(xc) - xref)*1.8 : 0, dy = e[1]*E, dz = e[2]*E;
-    var poly = p.prism.poly, x0 = p.prism.x0 + dx, x1 = p.prism.x1 + dx, hw = p.bom === false;
-    var Q = poly.map(function(q){ return [q[0] + dy, q[1] + dz]; });
-    /* ccw in (y,z) */
-    var A = 0; for(var i=0;i<Q.length;i++){ var a=Q[i], b=Q[(i+1)%Q.length]; A += a[0]*b[1]-b[0]*a[1]; }
-    if(A < 0) Q = Q.slice().reverse();
-    var fill = hw ? (p.group === 'pivot' ? '#c9a24a' : p.group === 'pin' ? '#d0473f' : '#9aa3ad') : '#efe6d2';
+    var d = [ e[0] ? e[0]*E*0.6 + sg*Math.max(0, Math.abs(xc) - xref)*1.8 : 0, e[1]*E, e[2]*E ];
+    var Q = p.prism.poly.slice(), A = 0;
+    for(var i=0;i<Q.length;i++){ var a=Q[i], b=Q[(i+1)%Q.length]; A += a[0]*b[1]-b[0]*a[1]; }
+    if(A < 0) Q = Q.reverse();
+    var ys = Q.map(function(q){ return q[0]; }), zs = Q.map(function(q){ return q[1]; });
+    recs.push({ p:p, key:key, d:d, Q:Q, x0:p.prism.x0, x1:p.prism.x1, hw:p.bom === false, sg:sg,
+      bb:[Math.min.apply(null,ys), Math.min.apply(null,zs), Math.max.apply(null,ys), Math.max.apply(null,zs)] });
+  });
+
+  /* ---- 2. faces: back-face culled, painter-sorted ---- */
+  var faces = [];
+  recs.forEach(function(r){
+    var p = r.p, d = r.d, x0 = r.x0 + d[0], x1 = r.x1 + d[0];
+    var Q = r.Q.map(function(q){ return [q[0] + d[1], q[1] + d[2]]; });
+    var fill = r.hw ? (p.group === 'pivot' ? '#d7b25a' : p.group === 'pin' ? '#d0473f' : '#a9b1ba') : '#f1e9d6';
     function add(pts3, shade){
       var pr = pts3.map(function(v){ return P3(v[0], v[1], v[2]); });
-      var depth = pr.reduce(function(s, v){ return s + v[2]; }, 0)/pr.length;
-      faces.push({ d:depth, pts:pr, fill:fill, shade:shade, hw:hw });
+      faces.push({ d:pr.reduce(function(s, v){ return s + v[2]; }, 0)/pr.length, pts:pr, fill:fill, shade:shade, hw:r.hw });
     }
-    /* +X end cap is the only visible cap for a camera at (+X, −Y, +Z) */
-    add(Q.map(function(q){ return [x1, q[0], q[1]]; }), 0.92);
-    for(i=0;i<Q.length;i++){
+    add(Q.map(function(q){ return [x1, q[0], q[1]]; }), 0.93);
+    for(var i=0;i<Q.length;i++){
       var a = Q[i], b = Q[(i+1)%Q.length], ny = b[1]-a[1], nz = -(b[0]-a[0]);
       if(-ny + nz <= 0) continue;
-      add([[x0,a[0],a[1]],[x1,a[0],a[1]],[x1,b[0],b[1]],[x0,b[0],b[1]]], nz > Math.abs(ny) ? 1 : 0.8);
+      add([[x0,a[0],a[1]],[x1,a[0],a[1]],[x1,b[0],b[1]],[x0,b[0],b[1]]], nz > Math.abs(ny) ? 1 : 0.82);
     }
-    /* balloon target: the instance nearest the camera */
-    var cy = 0, cz = 0; Q.forEach(function(q){ cy += q[0]; cz += q[1]; }); cy /= Q.length; cz /= Q.length;
-    var c = P3(x1, cy, cz);
-    if(!targets[key]) targets[key] = { c:c, key:key, all:[] };
-    targets[key].all.push(c);
-    if(c[2] > targets[key].c[2]) targets[key].c = c;
   });
   faces.sort(function(a,b){ return a.d - b.d; });
   var xs = [], ys = [];
   faces.forEach(function(f){ f.pts.forEach(function(v){ xs.push(v[0]); ys.push(v[1]); }); });
   var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
-  var dw = 1500, sc = Math.min(dw/(bx1 - bx0), 980/(by1 - by0)), M = 120;
-  function X(v){ return M + 60 + (v - bx0)*sc; } function Y(v){ return 170 + (v - by0)*sc; }
+  var sc = Math.min(1500/(bx1 - bx0), 960/(by1 - by0)), OX = 230, OY = 230;
+  function X(v){ return OX + (v - bx0)*sc; } function Y(v){ return OY + (v - by0)*sc; }
+  function SP(x, y, z){ var v = P3(x, y, z); return [X(v[0]), Y(v[1])]; }
   var out = [];
   faces.forEach(function(f){
-    var shade = f.shade, col = f.fill;
     out.push('<polygon points="'+f.pts.map(function(v){ return X(v[0]).toFixed(1)+','+Y(v[1]).toFixed(1); }).join(' ')+
-      '" fill="'+col+'" fill-opacity="'+(f.hw ? 1 : 1)+'" stroke="#2b2b2b" stroke-width="'+(f.hw ? 0.4 : 0.7)+'" style="filter:brightness('+shade+')"/>');
+      '" fill="'+f.fill+'" stroke="#111" stroke-width="'+(f.hw ? 0.35 : 0.75)+'" stroke-linejoin="round" style="filter:brightness('+f.shade+')"/>');
   });
-  /* balloons on an ellipse round the drawing, in the angular order of their targets,
-     so the leader lines fan out without crossing */
-  var tl = Object.keys(targets).map(function(k){ return targets[k]; });
-  var ecx = (X(bx0) + X(bx1))/2, ecy = (Y(by0) + Y(by1))/2;
-  var ra = (X(bx1) - X(bx0))/2 + 70, rb = (Y(by1) - Y(by0))/2 + 60;
-  tl.forEach(function(t){ t.a = Math.atan2((Y(t.c[1]) - ecy)/rb, (X(t.c[0]) - ecx)/ra); });
-  tl.sort(function(a,b){ return a.a - b.a; });
-  /* evenly spaced slots all round the ellipse, in the same angular order as the
-     targets (so leaders never cross), rotated to the best overall fit; then each
-     item points at whichever of its copies is nearest its own balloon */
-  var n = tl.length, step = 2*Math.PI/Math.max(n, 1), best = null;
-  for(var off = 0; off < 2*Math.PI; off += step/8){
+
+  /* ---- 3. assembly lines: what joins what ---- */
+  var lines = [], seen = {};
+  function line(a, b, kind){
+    var k = a.map(Math.round).join()+'|'+b.map(Math.round).join();
+    if(seen[k] || Math.hypot(a[0]-b[0], a[1]-b[1]) < 6) return; seen[k] = 1;
+    lines.push({ a:a, b:b, kind:kind });
+  }
+  /* (a) bolt / pin axes: every hardware stack on one centre line, carried into the timber */
+  var axes = {};
+  recs.filter(function(r){ return r.hw; }).forEach(function(r){
+    var cy = (r.bb[0] + r.bb[2])/2, cz = (r.bb[1] + r.bb[3])/2;
+    var k = r.sg+'|'+Math.round(cy/4)+'|'+Math.round(cz/4)+'|'+Math.round(r.d[1])+'|'+Math.round(r.d[2]);
+    (axes[k] = axes[k] || { cy:cy + r.d[1], cz:cz + r.d[2], lo:Infinity, hi:-Infinity, sg:r.sg, n:0, base:Infinity });
+    axes[k].lo = Math.min(axes[k].lo, r.x0 + r.d[0]); axes[k].hi = Math.max(axes[k].hi, r.x1 + r.d[0]);
+    axes[k].base = Math.min(axes[k].base, r.sg > 0 ? r.x0 : -r.x1); axes[k].n++;
+  });
+  Object.keys(axes).forEach(function(k){
+    var a = axes[k]; if(a.n < 2 && a.hi - a.lo < 40) return;     /* single screws: no axis */
+    var home = a.sg > 0 ? a.base : -a.base;                     /* where the stack sits when assembled */
+    var lo = Math.min(a.lo, home), hi = Math.max(a.hi, home);
+    line(SP(lo, a.cy, a.cz), SP(hi, a.cy, a.cz), 'axis');
+  });
+  /* (b) timber joints: laps (adjacent layers whose profiles overlap) and boards on bearers */
+  var tim = recs.filter(function(r){ return !r.hw; });
+  function bbI(a, b){ return [Math.max(a[0],b[0]), Math.max(a[1],b[1]), Math.min(a[2],b[2]), Math.min(a[3],b[3])]; }
+  for(var i=0;i<tim.length;i++) for(var j=i+1;j<tim.length;j++){
+    var A = tim[i], B = tim[j], I = bbI(A.bb, B.bb);
+    var wa = A.x1 - A.x0, wb = B.x1 - B.x0;
+    var board = wa > 600 ? A : wb > 600 ? B : null, other = board === A ? B : A;
+    if(board && other !== board && other.x1 - other.x0 < 600){
+      /* board resting on a bearer: touching in Z, overlapping in Y, bearer within the board's length */
+      if(other.x0 < board.x0 - 1 || other.x1 > board.x1 + 1) continue;
+      if(I[2] - I[0] < 10 || Math.abs(board.bb[1] - other.bb[3]) > 2) continue;
+      var xm = (other.x0 + other.x1)/2, ym = (I[0] + I[2])/2;
+      line(SP(xm + board.d[0], ym + board.d[1], board.bb[1] + board.d[2]),
+           SP(xm + other.d[0], ym + other.d[1], other.bb[3] + other.d[2]), 'joint');
+      continue;
+    }
+    if(board) continue;
+    if(A.sg !== B.sg) continue;
+    var adj = Math.abs(A.x1 - B.x0) < 6 ? [A.x1, B.x0] : Math.abs(B.x1 - A.x0) < 6 ? [A.x0, B.x1] : null;
+    if(!adj || I[2] - I[0] < 8 || I[3] - I[1] < 8) continue;
+    if(typeof satDepth === 'function' && satDepth(A.Q, B.Q) < 5) continue;
+    var cy = (I[0] + I[2])/2, cz = (I[1] + I[3])/2;
+    line(SP(adj[0] + A.d[0], cy + A.d[1], cz + A.d[2]), SP(adj[1] + B.d[0], cy + B.d[1], cz + B.d[2]), 'joint');
+  }
+  lines.forEach(function(l){
+    var axis = l.kind === 'axis';
+    out.push('<line x1="'+l.a[0].toFixed(1)+'" y1="'+l.a[1].toFixed(1)+'" x2="'+l.b[0].toFixed(1)+'" y2="'+l.b[1].toFixed(1)+
+      '" stroke="'+(axis ? '#7a3b8f' : '#2f6f3e')+'" stroke-width="'+(axis ? 0.7 : 0.8)+'" stroke-dasharray="'+(axis ? '14 3 2 3' : '5 3')+'"/>');
+    if(!axis){
+      out.push('<circle cx="'+l.a[0].toFixed(1)+'" cy="'+l.a[1].toFixed(1)+'" r="1.6" fill="#2f6f3e"/>');
+      out.push('<circle cx="'+l.b[0].toFixed(1)+'" cy="'+l.b[1].toFixed(1)+'" r="1.6" fill="#2f6f3e"/>');
+    }
+  });
+
+  /* ---- 4. balloons: even slots on an ellipse, leaders untangled ---- */
+  var T = {};
+  recs.forEach(function(r){
+    var cy = 0, cz = 0; r.Q.forEach(function(q){ cy += q[0]; cz += q[1]; }); cy /= r.Q.length; cz /= r.Q.length;
+    var pt = SP(r.x1 + r.d[0], cy + r.d[1], cz + r.d[2]);
+    if(r.hw && r.p.group === 'screw' && T[r.key] && T[r.key].all.length > 12) return;
+    (T[r.key] = T[r.key] || { key:r.key, all:[] }).all.push(pt);
+  });
+  var tl = Object.keys(T).map(function(k){ return T[k]; });
+  var ex0 = X(bx0), ex1 = X(bx1), ey0 = Y(by0), ey1 = Y(by1);
+  var ecx = (ex0 + ex1)/2, ecy = (ey0 + ey1)/2, ra = (ex1 - ex0)/2 + 95, rb = (ey1 - ey0)/2 + 85;
+  /* slots evenly along a rounded rectangle 70 px outside the drawing's extents, so a
+     balloon can never sit on the drawing */
+  var n = tl.length, slots = [], mg = 70, rx0 = ex0 - mg, rx1 = ex1 + mg, ry0 = ey0 - mg, ry1 = ey1 + mg;
+  var Wr = rx1 - rx0, Hr = ry1 - ry0, per = 2*(Wr + Hr);
+  function onRect(u){
+    u = ((u % per) + per) % per;
+    if(u < Wr) return [rx0 + u, ry0]; u -= Wr;
+    if(u < Hr) return [rx1, ry0 + u]; u -= Hr;
+    if(u < Wr) return [rx1 - u, ry1]; u -= Wr;
+    return [rx0, ry1 - u];
+  }
+  for(var k=0;k<n;k++) slots.push(onRect(per*(k + 0.5)/n + Wr/2));
+  ra = (rx1 - rx0)/2; rb = (ry1 - ry0)/2;
+  /* first guess: each item's copy nearest the centre, assigned in angular order */
+  tl.forEach(function(t){
+    t.pt = t.all.reduce(function(m, c){ return Math.hypot(c[0]-ecx, c[1]-ecy) < Math.hypot(m[0]-ecx, m[1]-ecy) ? c : m; }, t.all[0]);
+    t.ang = Math.atan2((t.pt[1] - ecy)/rb, (t.pt[0] - ecx)/ra);
+  });
+  tl.sort(function(a,b){ return a.ang - b.ang; });
+  var best = null;
+  for(var off=0; off<n; off++){
     var cost = 0;
-    tl.forEach(function(t, i){ var d = Math.abs(((off + i*step) - t.a + 3*Math.PI) % (2*Math.PI) - Math.PI); cost += d*d; });
+    tl.forEach(function(t, i){ var sl = slots[(i + off) % n]; cost += Math.hypot(sl[0] - t.pt[0], sl[1] - t.pt[1]); });
     if(!best || cost < best.c) best = { c:cost, off:off };
   }
-  var ang = tl.map(function(t, i){ return best.off + i*step; });
-  tl.forEach(function(t, i){
-    var bx0b = ecx + ra*Math.cos(ang[i]), by0b = ecy + rb*Math.sin(ang[i]);
-    t.c = t.all.reduce(function(m, c){
-      var dm = Math.hypot(X(m[0]) - bx0b, Y(m[1]) - by0b), dc = Math.hypot(X(c[0]) - bx0b, Y(c[1]) - by0b);
-      return dc < dm ? c : m; }, t.c);
+  tl.forEach(function(t, i){ t.slot = (i + best.off) % n; });
+  /* each item points at whichever of its copies is nearest its balloon */
+  tl.forEach(function(t){ var sl = slots[t.slot];
+    t.pt = t.all.reduce(function(m, c){ return Math.hypot(c[0]-sl[0], c[1]-sl[1]) < Math.hypot(m[0]-sl[0], m[1]-sl[1]) ? c : m; }, t.all[0]); });
+  /* untangle: swap the balloons of any two leaders that cross (2-opt; each swap shortens
+     the total, so it ends), until no two leaders cross */
+  function cross(p1, p2, p3, p4){
+    function o(a, b, c){ return (b[0]-a[0])*(c[1]-a[1]) - (b[1]-a[1])*(c[0]-a[0]); }
+    var d1 = o(p3, p4, p1), d2 = o(p3, p4, p2), d3 = o(p1, p2, p3), d4 = o(p1, p2, p4);
+    return ((d1 > 0) !== (d2 > 0)) && ((d3 > 0) !== (d4 > 0));
+  }
+  var changed = true, guard = 0, crossings = 0;
+  while(changed && guard++ < 400){
+    changed = false;
+    for(var a=0;a<n;a++) for(var b=a+1;b<n;b++){
+      var A1 = tl[a], B1 = tl[b];
+      if(cross(A1.pt, slots[A1.slot], B1.pt, slots[B1.slot])){ var tmp = A1.slot; A1.slot = B1.slot; B1.slot = tmp; changed = true; }
+    }
+  }
+  for(a=0;a<n;a++) for(b=a+1;b<n;b++) if(cross(tl[a].pt, slots[tl[a].slot], tl[b].pt, slots[tl[b].slot])) crossings++;
+  tl.forEach(function(t){
+    var sl = slots[t.slot], it = byKey[t.key];
+    /* leader stops at the balloon's rim */
+    var dx = t.pt[0] - sl[0], dy = t.pt[1] - sl[1], L = Math.hypot(dx, dy) || 1, R = 16;
+    out.push('<line x1="'+t.pt[0].toFixed(1)+'" y1="'+t.pt[1].toFixed(1)+'" x2="'+(sl[0] + dx/L*R).toFixed(1)+'" y2="'+(sl[1] + dy/L*R).toFixed(1)+'" stroke="#1a5fb4" stroke-width="0.7"/>');
+    out.push('<circle cx="'+t.pt[0].toFixed(1)+'" cy="'+t.pt[1].toFixed(1)+'" r="2.6" fill="#1a5fb4"/>');
+    out.push('<circle cx="'+sl[0].toFixed(1)+'" cy="'+sl[1].toFixed(1)+'" r="'+R+'" fill="#fff" stroke="#1a5fb4" stroke-width="1.5"/>');
+    out.push('<text x="'+sl[0].toFixed(1)+'" y="'+(sl[1] + 4.6).toFixed(1)+'" text-anchor="middle" font-size="13.5" font-weight="700" fill="#1a5fb4">'+it.no+'</text>');
   });
-  tl.forEach(function(t, i){
-    var bx = ecx + ra*Math.cos(ang[i]), by = ecy + rb*Math.sin(ang[i]), item = byKey[t.key];
-    out.push('<line x1="'+X(t.c[0]).toFixed(1)+'" y1="'+Y(t.c[1]).toFixed(1)+'" x2="'+bx.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="#1a5fb4" stroke-width="0.8"/>');
-    out.push('<circle cx="'+X(t.c[0]).toFixed(1)+'" cy="'+Y(t.c[1]).toFixed(1)+'" r="2.4" fill="#1a5fb4"/>');
-    out.push('<circle cx="'+bx.toFixed(1)+'" cy="'+by.toFixed(1)+'" r="15" fill="#fff" stroke="#1a5fb4" stroke-width="1.4"/>');
-    out.push('<text x="'+bx.toFixed(1)+'" y="'+(by + 4.5).toFixed(1)+'" text-anchor="middle" font-size="13" font-weight="700" fill="#1a5fb4">'+item.no+'</text>');
-  });
-  var bot = ecy + rb + 30;
-  var drawW = ecx + ra + 40;
-  /* BOM table to the right */
-  var tx = drawW + 30, ty = 70, lh = 20, tw = 860, rows = ['<text x="'+tx+'" y="'+ty+'" font-size="15" font-weight="700">BILL OF MATERIALS</text>'];
+  var drawR = ecx + ra + 40, drawB = ecy + rb + 40;
+
+  /* ---- 5. BOM table, legend, notes, title block ---- */
+  var tx = drawR + 30, ty = 70, lh = 21, tw = 900, rows = [];
+  rows.push('<text x="'+tx+'" y="'+ty+'" font-size="15" font-weight="700">BILL OF MATERIALS</text>');
   ty += 14;
-  var cols = [0, 46, 120, 520];
-  rows.push('<rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+(lh*(items.length + 1) + 6)+'" fill="none" stroke="#333"/>');
+  var cols = [0, 46, 128, 540];
+  rows.push('<rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+(lh*(items.length + 1) + 6)+'" fill="none" stroke="#111" stroke-width="0.8"/>');
   ty += lh;
-  ['NO.', 'QTY', 'ITEM', 'SECTION / CATALOG NO.'].forEach(function(h, i){ rows.push('<text x="'+(tx + 8 + cols[i])+'" y="'+(ty - 5)+'" font-size="10" fill="#555">'+h+'</text>'); });
+  ['NO.', 'QTY', 'ITEM', 'SECTION · CUT  /  CATALOG NO.'].forEach(function(h, i){ rows.push('<text x="'+(tx + 8 + cols[i])+'" y="'+(ty - 5)+'" font-size="10" fill="#555">'+h+'</text>'); });
   items.forEach(function(it){
-    var drawn = !!targets[it.key];
+    var drawn = !!T[it.key];
     ty += lh;
-    rows.push('<line x1="'+tx+'" x2="'+(tx + tw)+'" y1="'+(ty - lh + 5)+'" y2="'+(ty - lh + 5)+'" stroke="#ddd"/>');
-    rows.push('<circle cx="'+(tx + 18)+'" cy="'+(ty - 5)+'" r="8.5" fill="#fff" stroke="'+(drawn ? '#1a5fb4' : '#aaa')+'"/>'+
+    rows.push('<line x1="'+tx+'" x2="'+(tx + tw)+'" y1="'+(ty - lh + 5)+'" y2="'+(ty - lh + 5)+'" stroke="#d8d8d8"/>');
+    rows.push('<circle cx="'+(tx + 18)+'" cy="'+(ty - 5)+'" r="9" fill="#fff" stroke="'+(drawn ? '#1a5fb4' : '#aaa')+'"/>'+
       '<text x="'+(tx + 18)+'" y="'+(ty - 1.5)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+(drawn ? '#1a5fb4' : '#888')+'">'+it.no+'</text>');
     rows.push('<text x="'+(tx + 8 + cols[1])+'" y="'+(ty - 1)+'" font-size="11">'+xesc(String(it.qty))+'</text>');
-    var lab = it.desc.length > 58 ? it.desc.slice(0, 56)+'…' : it.desc, cat = (it.cat || '').length > 48 ? it.cat.slice(0, 46)+'…' : (it.cat || '');
+    var lab = it.desc.length > 60 ? it.desc.slice(0, 58)+'…' : it.desc, cat = (it.cat || '').length > 52 ? it.cat.slice(0, 50)+'…' : (it.cat || '');
     rows.push('<text x="'+(tx + 8 + cols[2])+'" y="'+(ty - 1)+'" font-size="11">'+xesc(lab)+'</text>');
     rows.push(it.url ? '<a href="'+xesc(it.url)+'" target="_blank"><text x="'+(tx + 8 + cols[3])+'" y="'+(ty - 1)+'" font-size="10.5" fill="#1a5fb4" text-decoration="underline">'+xesc(cat)+'</text></a>'
-                     : '<text x="'+(tx + 8 + cols[3])+'" y="'+(ty - 1)+'" font-size="10.5" fill="#444">'+xesc(cat)+'</text>');
+                     : '<text x="'+(tx + 8 + cols[3])+'" y="'+(ty - 1)+'" font-size="10.5" fill="#333">'+xesc(cat)+'</text>');
   });
-  ty += 30;
-  rows.push('<text x="'+tx+'" y="'+ty+'" font-size="10" fill="#666">Grey balloon = item not visible in this view (screws inside counterbores, glue, oil). Hardware is shown exploded along its bolt axis.</text>');
-  var W = tx + tw + 30, H = Math.max(bot + 160, ty + 140);
-  /* title block */
-  var tb = '<g transform="translate('+(W - 520)+','+(H - 110)+')"><rect width="500" height="90" fill="#fff" stroke="#333"/>'+
-    '<line x1="0" y1="30" x2="500" y2="30" stroke="#333"/><line x1="300" y1="30" x2="300" y2="90" stroke="#333"/>'+
-    '<text x="10" y="21" font-size="14" font-weight="700">'+xesc(DESIGNS[S.designId].name+' — '+DESIGNS[S.designId].variants[S.variantId].name)+'</text>'+
-    '<text x="10" y="50" font-size="11">ASSEMBLY — EXPLODED ISOMETRIC · not to scale</text>'+
-    '<text x="10" y="70" font-size="9.5">'+xesc((model.headline || '').slice(0, 64))+'</text>'+
-    '<text x="310" y="50" font-size="11">Units: mm · Sheet A-1</text>'+
-    '<text x="310" y="70" font-size="11">'+new Date().toISOString().slice(0,10)+'</text></g>';
-  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" style="display:block;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">'+
-    '<rect x="8" y="8" width="'+(W-16)+'" height="'+(H-16)+'" fill="none" stroke="#333" stroke-width="1.5"/>'+
+  ty += 34;
+  rows.push('<text x="'+tx+'" y="'+ty+'" font-size="12" font-weight="700">LEGEND</text>'); ty += 20;
+  rows.push('<line x1="'+tx+'" y1="'+(ty-4)+'" x2="'+(tx+46)+'" y2="'+(ty-4)+'" stroke="#2f6f3e" stroke-dasharray="5 3"/><text x="'+(tx+56)+'" y="'+ty+'" font-size="11">Assembly line — the two dots meet when assembled (lap joint, or board on bearer)</text>'); ty += 18;
+  rows.push('<line x1="'+tx+'" y1="'+(ty-4)+'" x2="'+(tx+46)+'" y2="'+(ty-4)+'" stroke="#7a3b8f" stroke-dasharray="14 3 2 3"/><text x="'+(tx+56)+'" y="'+ty+'" font-size="11">Bolt / pin axis — the hardware slides along it into the bore</text>'); ty += 18;
+  rows.push('<circle cx="'+(tx+23)+'" cy="'+(ty-4)+'" r="8" fill="#fff" stroke="#1a5fb4"/><text x="'+(tx+56)+'" y="'+ty+'" font-size="11">Item number (BOM). Grey = not visible in this view (glue, oil, hidden screws)</text>'); ty += 30;
+  rows.push('<text x="'+tx+'" y="'+ty+'" font-size="12" font-weight="700">NOTES</text>'); ty += 18;
+  ['1. ALL TIMBER PRESSURE-TREATED PINE; DIMENSIONS IN MM; BREAK ALL ARRISES R3.',
+   '2. SEAL EVERY CUT END AND BORE BEFORE ASSEMBLY.',
+   '3. PIVOT BOLTS CLAMP THE SLEEVE, NOT THE TIMBER — TORQUE FULLY.',
+   '4. BUILD ORDER AND FASTENER COUNTS: SEE THE ASSEMBLY PLAN (BUY / BOM TAB).'].forEach(function(t){
+    rows.push('<text x="'+tx+'" y="'+ty+'" font-size="10.5">'+t+'</text>'); ty += 16; });
+  var W = tx + tw + 30, H = Math.max(drawB + 150, ty + 150);
+  var d = DESIGNS[S.designId], tb = '<g transform="translate('+(W - 560)+','+(H - 120)+')" font-size="11">'+
+    '<rect width="540" height="100" fill="#fff" stroke="#111" stroke-width="1"/>'+
+    '<line x1="0" y1="34" x2="540" y2="34" stroke="#111"/><line x1="0" y1="67" x2="540" y2="67" stroke="#111"/>'+
+    '<line x1="330" y1="34" x2="330" y2="100" stroke="#111"/><line x1="440" y1="34" x2="440" y2="100" stroke="#111"/>'+
+    '<text x="10" y="23" font-size="15" font-weight="700">'+xesc(d.name.toUpperCase()+' — '+d.variants[S.variantId].name)+'</text>'+
+    '<text x="10" y="55">ASSEMBLY — EXPLODED ISOMETRIC</text><text x="10" y="88" font-size="9.5">'+xesc((model.headline || '').slice(0, 58))+'</text>'+
+    '<text x="340" y="50" font-size="8" fill="#555">SCALE</text><text x="340" y="62">NTS</text>'+
+    '<text x="450" y="50" font-size="8" fill="#555">UNITS</text><text x="450" y="62">mm</text>'+
+    '<text x="340" y="83" font-size="8" fill="#555">SHEET</text><text x="340" y="95">A-1 OF 1</text>'+
+    '<text x="450" y="83" font-size="8" fill="#555">REV</text><text x="450" y="95">'+xesc(String((d.info||{}).version||'A'))+'</text></g>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" style="display:block;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif" data-crossings="'+crossings+'" data-lines="'+lines.length+'">'+
+    '<rect x="8" y="8" width="'+(W-16)+'" height="'+(H-16)+'" fill="none" stroke="#111" stroke-width="1.6"/>'+
+    '<rect x="16" y="16" width="'+(W-32)+'" height="'+(H-32)+'" fill="none" stroke="#111" stroke-width="0.5"/>'+
     '<text x="40" y="60" font-size="20" font-weight="700">ASSEMBLY DRAWING</text>'+
-    '<text x="40" y="84" font-size="12" fill="#555">Explode '+E+' mm · balloons match the BOM, the Buy / BOM tab and the BOM sheet</text>'+
+    '<text x="40" y="84" font-size="12" fill="#555">Exploded '+E+' mm · balloons = BOM item numbers (same as the Buy / BOM tab and the BOM sheet)</text>'+
     out.join('') + rows.join('') + tb + '</svg>';
 }
