@@ -2438,6 +2438,18 @@ function lineHalf(a, b, keep){
   if(n[0]*keep[0] + n[1]*keep[1] < c){ n = [-n[0], -n[1]]; c = -c; }
   return [n, c];
 }
+/* length of a member: long side of its minimum-area bounding rectangle */
+function memberLength(poly){
+  var best = null;
+  for(var i=0;i<poly.length;i++){
+    var a = poly[i], b = poly[(i+1)%poly.length], ang = Math.atan2(b[1]-a[1], b[0]-a[0]), c = Math.cos(ang), s = Math.sin(ang);
+    var u0=1e9,u1=-1e9,v0=1e9,v1=-1e9;
+    poly.forEach(function(q){ var u = q[0]*c + q[1]*s, v = -q[0]*s + q[1]*c; if(u<u0)u0=u; if(u>u1)u1=u; if(v<v0)v0=v; if(v>v1)v1=v; });
+    var w = u1-u0, t = v1-v0, L = Math.max(w, t);
+    if(!best || w*t < best.a) best = { a:w*t, L:L };
+  }
+  return best.L;
+}
 function perim(poly){ var s = 0; for(var i=0;i<poly.length;i++){ var a=poly[i], b=poly[(i+1)%poly.length]; s += Math.hypot(b[0]-a[0], b[1]-a[1]); } return s; }
 var FOLD_GEOM = {};
 function foldingGeometry(F, o){
@@ -2463,9 +2475,10 @@ function foldingGeometry(F, o){
       });
     }
     if(h) poly = poly.map(function(q){ return [q[0], q[1] + (p.id === 'R5' ? 0 : h)]; });
+    /* cut length follows the member's real length (before corner rounding) */
+    var grow = memberLength(poly) - memberLength(p.poly);
     var sf = SOFTEN[p.id]; if(sf) poly = roundPoly(poly, sf[0], sf[1]);
-    var grow = (perim(poly) - p0)/2;
-    out.push(Object.assign({}, p, { poly:poly, cutAdj: Math.abs(grow) > 0.5 && !TRIM[p.id] && !SOFTEN[p.id] ? Math.round(grow) : 0,
+    out.push(Object.assign({}, p, { poly:poly, cutAdj: Math.abs(grow) > 0.5 ? Math.round(grow) : 0,
       changed: poly !== p.poly && (TRIM[p.id] || Math.abs(grow) > 0.5 || (o.legs && (p.id === 'R4' || p.id === 'R5'))) }));
   });
   function extra(id, pick, dy, n, name){
@@ -5410,6 +5423,7 @@ function svgBom(model){
 
 /* ---- Files: one click per generated file, plus the whole set as a zip --- */
 var REPO_FILES = [
+  ['bench-P2-part-drawings.pdf', 'Production part drawings P2 — 16 sheets, angles + holes (PDF)'],
   ['suppliers-tel-aviv.md', 'Supplier list (Markdown)'],
   ['../simple-G1/assembly.svg', 'G1 assembly drawing (SVG)'], ['../simple-G1/exploded.svg', 'G1 exploded drawing (SVG)'],
   ['../simple-G1/parts-and-drilling.svg', 'G1 parts & drilling (SVG)'], ['../simple-G1/full-bom.csv', 'G1 full BOM (CSV)'],

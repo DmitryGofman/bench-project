@@ -302,6 +302,7 @@ function svgBom(model){
 
 /* ---- Files: one click per generated file, plus the whole set as a zip --- */
 var REPO_FILES = [
+  ['bench-P2-part-drawings.pdf', 'Production part drawings P2 — 16 sheets, angles + holes (PDF)'],
   ['suppliers-tel-aviv.md', 'Supplier list (Markdown)'],
   ['../simple-G1/assembly.svg', 'G1 assembly drawing (SVG)'], ['../simple-G1/exploded.svg', 'G1 exploded drawing (SVG)'],
   ['../simple-G1/parts-and-drilling.svg', 'G1 parts & drilling (SVG)'], ['../simple-G1/full-bom.csv', 'G1 full BOM (CSV)'],
