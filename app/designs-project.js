@@ -196,23 +196,22 @@ function roundPoly(poly, rAcute, rObtuse){
 /* parts whose pointed corners are softened (EN 581-1 asks for rounded or chamfered edges) */
 var SOFTEN = { F3:[10,6], T4:[8,6], T5:[8,6] };
 
-/* Full fastener schedule for the folding bench, per number of side frames.
+/* Full fastener schedule for the folding bench (two end frames).
    Per frame: pivots A + B, one lock pin, three M8 laps, 28 frame screws and
    21 board screws (from the Rev 2 joint schedule, one side). */
 function foldingHardware(frames){
-  /* the middle frame has pivot A but no T2: no pivot B, no T1/T2 M8 laps, no T2 screws */
-  var mid = frames - 2, piv = 4 + mid, framescrews = 28*frames, boardscrews = 21*frames;
+  var piv = 2*frames, framescrews = 28*frames, boardscrews = 21*frames;
   var spare = function(n){ return Math.ceil(n*1.1); };
   return [
-    { id:'H01', qty:piv, spec:'M12×75 hex bolt, ISO 4017 / DIN 933, A4-70 stainless (or HDG 8.8). ×80 is fine, cut flush with the nut.', note:'Pivot A on every frame, pivot B on the two end frames.' },
+    { id:'H01', qty:piv, spec:'M12×75 hex bolt, ISO 4017 / DIN 933, A4-70 stainless (or HDG 8.8). ×80 is fine, cut flush with the nut.', note:'Pivots A and B, one per pivot per side.' },
     { id:'H02', qty:piv, spec:'M12 nyloc nut, ISO 10511 / DIN 985, A4', note:'Torque fully: the bolt clamps the sleeve, not the timber.' },
     { id:'H03', qty:2*piv, spec:'M12 flat washer ISO 7089 (Ø24 × 2.5), A4', note:'Head and nut side; bears on the sleeve ends.' },
     { id:'H04', qty:piv, spec:'Pivot sleeve: stainless tube OD18 × 2.5 wall (ID13), cut 54.5 long, ends square & deburred', note:'The bearing journal. '+piv+' × 54.5 = '+Math.round(piv*54.5)+' mm of tube + saw cuts.' },
     { id:'H05', qty:piv, spec:'Plain bushing ID18 / OD22 × 25, oil-impregnated sintered bronze (DIN 1850 / Oilite) or POM', note:'Pressed into F1 and T2 (head-side members), flush with the moving face.' },
     { id:'H06', qty:piv, spec:'Plain bushing ID18 / OD22 × 20, sintered bronze or POM', note:'Pressed into T1 and R3 (nut-side members).' },
     { id:'H07', qty:piv, spec:'Thrust washer UHMW-PE or PTFE, ID18.5 / OD48 / 3.0', note:'Between moving faces at each pivot; sets the 3 mm face gap.' },
-    { id:'H08', qty:frames, spec:'Ball-lock quick-release pin Ø12, stainless, grip ≥ 80 mm, with lanyard + screw eye', note:'One per frame, through F1 into T1 ("table" or "bench" hole). Tether every pin.' },
-    { id:'H09', qty:6 + mid, spec:'M8×65 hex bolt ISO 4017 + 2 × ISO 7089 washers + M8 nyloc, A4', note:'T1/T2 laps (2 per end frame) and T1/T4 lap (1 per frame). Counterbore Ø24×12 both faces.' },
+    { id:'H08', qty:frames, spec:'Ball-lock quick-release pin Ø12, stainless, grip ≥ 80 mm, with lanyard + screw eye', note:'One per side, through F1 into T1 ("table" or "bench" hole). Tether every pin.' },
+    { id:'H09', qty:3*frames, spec:'M8×65 hex bolt ISO 4017 + 2 × ISO 7089 washers + M8 nyloc, A4', note:'T1/T2 laps (2 per side) and T1/T4 lap (1 per side). Counterbore Ø24×12 both faces.' },
     { id:'H10', qty:spare(framescrews + boardscrews), spec:'Exterior structural screw 5×70, countersunk Torx, A2 stainless or C4 coated', note:(framescrews + boardscrews)+' fitted + 10% spare. Pilot Ø3, countersink flush — no head may stand proud near moving parts.' },
     { id:'H11', qty:1, spec:'Exterior PU / D4 wood adhesive, ≥ 500 g', note:'All fixed laps; T4 and T5 mandatory. Not on moving faces.' },
     { id:'H12', qty:1, spec:'End-grain sealer or exterior preservative, 0.5 l', note:'Every cut end and bored hole before assembly.' },
@@ -231,35 +230,31 @@ DESIGNS.folding = {
   ],
   schema:[
     {k:'L',     label:'Length', group:'Dimensions', type:'range', min:1200, max:3000, step:10, def:2000, unit:'mm'},
-    {k:'mid',   label:'Middle frame (third leg set)', group:'Dimensions', type:'select', def:'auto',
-       options:[{v:'auto',label:'Auto (over 1800)'},{v:'on',label:'Always'},{v:'off',label:'Never'}]},
     {k:'fold',  label:'Fold, table → bench', group:'Mechanism', type:'range', min:0, max:100, step:1, def:0, unit:'°'},
     {k:'motion',label:'Front seat while folding', group:'Mechanism', type:'select', def:'hands',
        options:[{v:'hands',label:'Hands-off'},{v:'guided',label:'Held level'}]},
     {k:'conn',  label:'Show pivots, pins, bolts & screws', group:'Mechanism', type:'bool', def:true}
   ],
   variants:{
-    P2:{ name:'P2 · 2 m lounger', tag:'2000 long, middle frame, M12 pivots on Ø18 sleeves, Ø12 lock pins.',
-         note:'<b>P1 Rev 3, 2 m.</b> Same side profile and mechanism as Rev 2, stretched to 2000 mm. A third, '+
-              'identical side frame sits in the middle so the 38 mm boards span ≈ 0.9 m instead of 1.7 m. '+
+    P2:{ name:'P2 · 2 m', tag:'2000 long, two end frames, M12 pivots on Ø18 sleeves, Ø12 lock pins.',
+         note:'<b>P1 Rev 3, 2 m.</b> Same side profile and mechanism as Rev 2, stretched to 2000 mm between the two end frames. '+
               'Pivots upgraded to M12 bolts on Ø18 stainless sleeves in Ø18/22 bronze bushings; lock pins Ø12. '+
-              'Use <i>Length</i> up to 3000 mm — the middle frame switches on automatically above 1800.',
-         set:{ L:2000, mid:'auto', fold:0, motion:'hands', conn:true } },
+              'No reinforcement yet — see the board deflection rows in Checks.',
+         set:{ L:2000, fold:0, motion:'hands', conn:true } },
+    P3:{ name:'P3 · 2.4 m XL', tag:'2400 long — the bigger option. Boards need 3 m stock.',
+         note:'<b>P1 Rev 3, 2.4 m.</b> The longest version that still comes out of one 3 m board per slat. '+
+              'Same mechanism and end frames; <i>Length</i> goes to 3000 mm if you want it bigger still. '+
+              'Set <i>Stock length</i> to 3000 (or 3600) to match what the yard sells.',
+         set:{ L:2400, fold:0, motion:'hands', conn:true } },
     P1:{ name:'P1 Rev 2', tag:'1520 long, 38×89 throughout. Stops T4/T5, lock pins, bushed pivots.',
          note:'<b>P1 Rev 2.</b> Matches <code>folding-P1/rev2/</code>: T3 removed, T4 spread stop and T5 bench stop added, '+
               'T2 and S1 lengthened, bushed pivots (now M12 / Ø18 sleeve), Ø12 indexing lock pin. Drag <i>Fold</i> to run the mechanism; '+
               '<i>Hands-off</i> lets the front seat hang under gravity the way it really will.',
-         set:{ L:1520, mid:'off', fold:0, motion:'hands', conn:true } }
+         set:{ L:1520, fold:0, motion:'hands', conn:true } }
   },
   build:function(P, ctx){
     var F = FOLDING_P1, d = (P.L - F.L0)/2;
-    /* a third side frame on the centre line when the boards would otherwise span too far.
-       It is the right-hand frame translated, not mirrored: the stack 514…710 centred on X = 0.
-       It has no T2 / pivot B: a middle T2 would sweep through the rear seat boards from 54°
-       to 99° (found by the clash sweep). The tabletop is a rigid board panel carried by the
-       two end T2s, so the middle T1 is a bearer under it, hinged to the middle F1 at A. */
-    var MIDX = 612, MIDSKIP = ['T2'], hasMid = P.mid === 'on' || (P.mid !== 'off' && P.L > 1800);
-    var frames = hasMid ? 3 : 2;
+    var frames = 2;
     var th = -Math.max(0, Math.min(100, P.fold));
     var st = ctx.stock('rail');
     if(st.t !== 38 || st.w !== 89)
@@ -291,8 +286,6 @@ DESIGNS.folding = {
       } else {
         ctx.prism(p.name, p.g, p.x0 + d, p.x1 + d, poly, [1.1,0,0], o);
         ctx.prism(p.name, p.g, -(p.x1 + d), -(p.x0 + d), poly, [-1.1,0,0], o);
-        if(hasMid && MIDSKIP.indexOf(p.id) < 0)
-          ctx.prism(p.name+' (middle)', p.g, p.x0 - MIDX, p.x1 - MIDX, poly, [0,0,0.6], o);
       }
     });
 
@@ -310,17 +303,10 @@ DESIGNS.folding = {
           else if(m.k === 'boardscrew'){
             var n = lift(m.asm), cc = [c[0]+n[1]*1.5, c[1]+n[2]*1.5];
             ctx.prism('5×70 board screw · '+m.joint, 'screw', xf-3, xf+3, ngon(cc, 3.5, 8), [sx*1.1,0,0], { bom:false });
-            if(hasMid && sx > 0 && MIDSKIP.indexOf(m.part) < 0)
-              ctx.prism('5×70 board screw · '+m.joint+' (middle)', 'screw', m.x-MIDX-3, m.x-MIDX+3, ngon(cc, 3.5, 8), [0,0,0.6], { bom:false });
             return;
           } else return;
           var x0 = sx > 0 ? xf : xf - h, x1 = sx > 0 ? xf + h : xf;
           ctx.prism(nm, g, x0, x1, poly, [sx*1.3,0,0], { bom:false });
-          /* middle frame: same fastener on the translated right-hand stack */
-          if(hasMid && sx > 0 && MIDSKIP.indexOf(m.part) < 0 && m.joint !== 'J14'){
-            var xm = m.x - MIDX;
-            ctx.prism(nm+' (middle)', g, xm, xm + h, poly, [0,0,0.6], { bom:false });
-          }
         });
       });
     }
@@ -339,12 +325,12 @@ DESIGNS.folding = {
       { s:'warn', t:'<b>Lock pin edge distance.</b> The Ø12 pin hole sits 17.5 mm from the T1 edge (11 mm of wood left). '+
           'It only has to hold the assembly against tipping back, not carry the seat — the stops T4/T5 do that — '+
           'but drill it accurately and keep it ≥ Ø12 / ≤ Ø12.5.', v:'11 mm wall' },
-      { s: frames === 3 ? 'ok' : (P.L > 1800 ? 'warn' : 'ok'),
-        t: frames === 3 ? '<b>Middle frame fitted.</b> Rear legs, front legs and a tabletop bearer on the centre line; boards span half as far. '+
-              'It has pivot A and a lock pin but no T2 arm (a middle T2 would cut through the rear seat while folding). '+
-              'The three A pivots must be co-axial — drill them through all three frames clamped in line.'
-           : '<b>Two frames only.</b> '+(P.L > 1800 ? 'Over 1800 mm the boards get springy without a middle frame.' : 'Fine at this length.'),
-        v: frames+' frames' },
+      { s: P.L > 1800 ? 'warn' : 'ok',
+        t: P.L > 1800 ? '<b>Long span, not reinforced.</b> Above 1800 mm the 38 mm boards span the full length between the two end frames. '+
+              'Check the deflection rows below; a person standing or kneeling mid-span will feel them flex. '+
+              'Reinforcement is a separate decision (not modelled).'
+           : '<b>Span.</b> Fine at this length with two end frames.',
+        v: P.L+' mm' },
       { s:'ok', t:'<b>Pointed corners softened.</b> F3 brace tip R10, T4 and T5 stop corners R6–R8, so no sharp tips stick out at knee or hand height. EN 581-1 (outdoor seating and tables) asks for rounded or chamfered edges; the drawn arcs are a guide — also ease every exposed arris by hand or router.', v:'3 parts' },
       { s:'warn', t:'<b>Not load-rated.</b> T4 reacts ≈4 kN per side in the worst case (two adults on the front seat, leaning on the table, slippery floor). Glue on T4/T1 is mandatory. Proof-load a prototype before release — see design-review.md.', v:'prototype' },
       { s: mode==='FOLDING' ? 'warn':'ok', t:'<b>Pose: '+mode+'.</b> '+
@@ -357,20 +343,19 @@ DESIGNS.folding = {
     return {
       parts: ctx.parts,
       spans: [
-        { label:'Tabletop / backrest boards', span: frames === 3 ? (631 + d) - (669 - MIDX) : 2*(631 + d), b:89, h:38, tributary:95, load:2 },
-        { label:'Front seat boards',          span: frames === 3 ? (634 + d) - (672 - MIDX) : 2*(634 + d), b:89, h:38, tributary:95, load:2 },
-        { label:'Rear seat boards',           span: frames === 3 ? (552 + d) - (590 - MIDX) : 2*(552 + d), b:89, h:38, tributary:95, load:2 }
+        { label:'Tabletop / backrest boards', span: 2*(631 + d), b:89, h:38, tributary:95, load:2 },
+        { label:'Front seat boards',          span: 2*(634 + d), b:89, h:38, tributary:95, load:2 },
+        { label:'Rear seat boards',           span: 2*(552 + d), b:89, h:38, tributary:95, load:2 }
       ],
       headline: P.L+' × 469 mm tabletop · 755 high · seats 450 · combined bench seat 374 deep',
-      headline2: 'Rev 3 · '+frames+' frames · '+mode+(mode==='FOLDING' ? ' '+(-th)+'° · pins out' : ' · pins in')+
+      headline2: 'Rev 3 · '+mode+(mode==='FOLDING' ? ' '+(-th)+'° · pins out' : ' · pins in')+
                  ' · M12 bushed pivots · Ø12 pins · not load-rated',
       hardware: foldingHardware(frames), joints: F.joints, interfaces: F.interfaces, checks: checks,
       fabrication: [
         { part:'Pivots A, B', detail:'Bore Ø22, press 18/22 bushings flush with the moving faces, Ø18 × 2.5 stainless sleeve 54.5 long, M12 bolt + nyloc tightened fully (the bolt clamps the sleeve, not the timber), 3 mm UHMW thrust washer Ø48. Counterbore Ø36: 10 deep head side, 15 deep nut side.' },
         { part:'Lock pin', detail:'Match-drill Ø12.5 through F1 into T1 in each locked pose (table, then bench).' },
         { part:'Stops', detail:'T4 flush with the table end, bearing on F1 upper flank; T5 under the tabletop, bearing on F1 rear flank in bench pose; S1 lapped full height on R4. Glue + screws; T4 also 1 × M8.' },
-        { part:'Pivot alignment', detail:'With a middle frame the pivots A and B are each three bolts on one axis. Clamp the three frames together and drill each pivot in one pass (or use a drilled steel template), then ream the bushings in place; a 1 mm offset is enough to make the fold bind.' },
-        { part:'Lock pins', detail:'Tether each Ø10 pin to the frame with a short stainless cable so it cannot be lost while the bench is converted; common on commercial convertible-bench plans.' },
+        { part:'Lock pins', detail:'Tether each Ø12 pin to the frame with a short stainless cable so it cannot be lost while the bench is converted; common on commercial convertible-bench plans.' },
         { part:'Weather detailing', detail:'Seal all cut end grain (stop blocks, bearer ends, bored holes) with preservative or wax sealer before assembly, and use stainless or hot-dip galvanised fasteners only — electroplated screws corrode in treated timber.' },
         { part:'Sliding corner', detail:'R6 round-over on R3 front-top corner; ease S2 lower arrises 3 mm.' },
         { part:'Drawings', detail:'folding-P1/rev2/: connections-*.svg, pivot-sections.svg, drilling.svg, joint-schedule.csv, design-review.md.' }
