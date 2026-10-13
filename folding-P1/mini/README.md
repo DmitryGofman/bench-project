@@ -7,6 +7,9 @@ member, pivot, stop and lock-pin position is the real one divided by 5.
 ![side views: table, 50° and bench](preview-side-views.png)
 *Right-hand side, table → 50° → bench. Blue = rear frame (fixed), red = front frame, green = table/back frame.*
 
+![isometric, one colour per part](preview-iso-parts.png)
+*Isometric, every printed part type in its own colour (`render_iso.py`; bench pose in `preview-iso-parts-bench.png`).*
+
 ## Files
 | | |
 |---|---|
