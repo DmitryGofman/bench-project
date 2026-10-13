@@ -292,6 +292,42 @@ function foldingSweep(F, seatX){
   return (FOLD_SWEEP[seatX] = { hits:list, steps:n });
 }
 
+/* HARDWARE MODELS — simple but true-to-size stacks along the bolt axis (X).
+   a/b: depth below the OUTER face of the stack (mm, inward positive); n sides,
+   r radius, e = explode factor (outer pieces fly further). Names start with the
+   hardware schedule ref so the assembly drawing can balloon them. */
+var PIVOT_STACK = [
+  { nm:'H01 · M12 hex bolt head',  g:'bolt',  r:10.4, n:6,  a:-0.5, b:7.5,  e:2.6, rot:30 },
+  { nm:'H03 · M12 washer',         g:'bolt',  r:12,   n:20, a:7.5,  b:10,   e:2.2 },
+  { nm:'H05 · Bronze bush 18/22',  g:'pivot', r:11,   n:20, a:10,   b:35,   e:1.9 },
+  { nm:'H04 · Stainless sleeve Ø18', g:'pivot', r:9,  n:16, a:10,   b:64.5, e:1.6 },
+  { nm:'H07 · UHMW thrust washer', g:'pivot', r:24,   n:24, a:38,   b:41,   e:1.4 },
+  { nm:'H06 · Bronze bush 18/22',  g:'pivot', r:11,   n:20, a:44,   b:64,   e:1.2 },
+  { nm:'H03 · M12 washer',         g:'bolt',  r:12,   n:20, a:64,   b:66.5, e:0.8 },
+  { nm:'H02 · M12 nyloc nut',      g:'bolt',  r:10.4, n:6,  a:66.5, b:79.5, e:0.5, rot:30 }
+];
+var PIN_IN = [
+  { nm:'H08 · Lock pin Ø12 (button cap)', g:'pin', r:13, n:16, a:-12, b:0,  e:2.6 },
+  { nm:'H08 · Lock pin Ø12 (shank)',      g:'pin', r:6,  n:12, a:0,   b:78, e:2.6 }
+];
+var PIN_OUT = [
+  { nm:'H08 · Lock pin Ø12 (pulled)',     g:'pin', r:13, n:16, a:-60, b:-48, e:2.6 },
+  { nm:'H08 · Lock pin Ø12 (shank)',      g:'pin', r:6,  n:12, a:-48, b:30,  e:2.6 }
+];
+var M8_STACK = [
+  { nm:'H09 · M8 hex bolt head', g:'bolt', r:7,  n:6,  a:-0.5, b:5.5, e:2.2, rot:30 },
+  { nm:'H09 · M8 washer',        g:'bolt', r:8,  n:16, a:5.5,  b:7,   e:1.9 },
+  { nm:'H09 · M8 nyloc nut',     g:'bolt', r:7,  n:6,  a:68,   b:76.5, e:0.4, rot:30 }
+];
+function hwStack(ctx, c, sx, xo, pieces, suffix){
+  pieces.forEach(function(q){
+    var poly = ngon(c, q.r, q.n, q.rot || 0);
+    var x0 = xo - q.b, x1 = xo - q.a;
+    if(sx < 0){ var t = x0; x0 = -x1; x1 = -t; }
+    ctx.prism(q.nm + (suffix || ''), q.g, x0, x1, poly, [sx*q.e, 0, 0], { bom:false });
+  });
+}
+
 /* parts whose pointed corners are softened (EN 581-1 asks for rounded or chamfered edges) */
 var SOFTEN = { F3:[10,6], T4:[8,6], T5:[8,6] };
 
@@ -390,14 +426,13 @@ DESIGNS.folding = {
         var c = tf(m.asm)([m.y, m.z]);
         [1,-1].forEach(function(sx){
           var xf = sx*(m.x + d), poly, h, g, nm;
-          if(m.k === 'pivot'){ poly = ngon(c, 18, 18); h = 3; g = 'pivot'; nm = 'Pivot '+m.label+' · M12 on Ø18 sleeve'; }
-          else if(m.k === 'pin'){ poly = ngon(c, 6, 12); h = (atTable||atBench) ? 28 : 3; g = 'pin';
-                                  nm = 'Lock pin Ø12'+((atTable||atBench) ? ' · engaged' : ' · pulled'); }
-          else if(m.k === 'm8'){ poly = ngon(c, 8, 6, 30); h = 2; g = 'bolt'; nm = 'M8 bolt · '+m.joint; }
-          else if(m.k === 'screw'){ poly = ngon(c, 4, 8); h = 1.5; g = 'screw'; nm = '5×70 screw · '+m.joint; }
+          if(m.k === 'pivot'){ hwStack(ctx, c, sx, m.x + d, PIVOT_STACK, ' · pivot '+m.label); return; }
+          else if(m.k === 'pin'){ hwStack(ctx, c, sx, m.x + d, (atTable||atBench) ? PIN_IN : PIN_OUT, ''); return; }
+          else if(m.k === 'm8'){ hwStack(ctx, c, sx, m.x + d, M8_STACK, ' · '+m.joint); return; }
+          else if(m.k === 'screw'){ poly = ngon(c, 4.5, 8); h = 1.5; g = 'screw'; nm = 'H10 · 5×70 screw · '+m.joint; }
           else if(m.k === 'boardscrew'){
             var n = lift(m.asm), cc = [c[0]+n[1]*1.5, c[1]+n[2]*1.5];
-            ctx.prism('5×70 board screw · '+m.joint, 'screw', xf-3, xf+3, ngon(cc, 3.5, 8), [sx*1.1,0,0], { bom:false });
+            ctx.prism('H10 · 5×70 board screw · '+m.joint, 'screw', xf-3, xf+3, ngon(cc, 3.5, 8), [sx*1.1,0,0], { bom:false });
             return;
           } else return;
           var x0 = sx > 0 ? xf : xf - h, x1 = sx > 0 ? xf + h : xf;

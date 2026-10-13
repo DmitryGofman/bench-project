@@ -45,9 +45,13 @@ once('<div class="pane" id="paneExport">\n      <div class="exp">',
      '<div class="pane" id="paneExport">\n      <div id="filesBox" style="padding:14px 16px 4px"></div>\n      <div class="exp">')
 once('renderHardware(); renderCost(); renderExport();',
      'renderHardware(); renderCost(); renderExport(); renderBuy(); renderFiles();')
-once("function renderDrawing(){\n  document.getElementById('svgWrap').innerHTML = svgDrawing(",
+if "svgBom(MODEL)); }, 0);" not in src: once("function renderDrawing(){\n  document.getElementById('svgWrap').innerHTML = svgDrawing(",
      "function renderDrawing(){\n  setTimeout(function(){ document.getElementById('svgWrap').insertAdjacentHTML('beforeend', svgBom(MODEL)); }, 0);\n"
      "  document.getElementById('svgWrap').innerHTML = svgDrawing(")
+once('<button data-vt="draw">Drawing</button>', '<button data-vt="draw">Drawing</button>\n    <button data-vt="asm">Assembly</button>')
+once("var isDraw=VIEWTAB==='draw';", "var isDraw=VIEWTAB!=='3d';")
+once("    if(VIEWTAB==='draw') renderDrawing(); else draw();", "    if(VIEWTAB!=='3d') renderDrawing(); else draw();")
+once("function renderDrawing(){\n  setTimeout(", "function renderDrawing(){\n  if(VIEWTAB==='asm'){ document.getElementById('svgWrap').innerHTML = svgAssembly(MODEL); return; }\n  setTimeout(")
 block = B + '\n' + js + '\n' + E + '\n'
 if B in src:
     src = re.sub(re.escape(B) + r'.*?' + re.escape(E) + r'\n', lambda m: block, src, flags=re.S)

@@ -335,6 +335,7 @@
   <div id="vtabs">
     <button data-vt="3d" class="on">3D</button>
     <button data-vt="draw">Drawing</button>
+    <button data-vt="asm">Assembly</button>
   </div>
   <div id="tip">drag to orbit &nbsp;·&nbsp; shift-drag or right-drag to pan<br>
     arrow keys move X / Y &nbsp;·&nbsp; page up / down moves Z &nbsp;·&nbsp; scroll to zoom</div>
@@ -1357,6 +1358,42 @@ function foldingSweep(F, seatX){
   return (FOLD_SWEEP[seatX] = { hits:list, steps:n });
 }
 
+/* HARDWARE MODELS — simple but true-to-size stacks along the bolt axis (X).
+   a/b: depth below the OUTER face of the stack (mm, inward positive); n sides,
+   r radius, e = explode factor (outer pieces fly further). Names start with the
+   hardware schedule ref so the assembly drawing can balloon them. */
+var PIVOT_STACK = [
+  { nm:'H01 · M12 hex bolt head',  g:'bolt',  r:10.4, n:6,  a:-0.5, b:7.5,  e:2.6, rot:30 },
+  { nm:'H03 · M12 washer',         g:'bolt',  r:12,   n:20, a:7.5,  b:10,   e:2.2 },
+  { nm:'H05 · Bronze bush 18/22',  g:'pivot', r:11,   n:20, a:10,   b:35,   e:1.9 },
+  { nm:'H04 · Stainless sleeve Ø18', g:'pivot', r:9,  n:16, a:10,   b:64.5, e:1.6 },
+  { nm:'H07 · UHMW thrust washer', g:'pivot', r:24,   n:24, a:38,   b:41,   e:1.4 },
+  { nm:'H06 · Bronze bush 18/22',  g:'pivot', r:11,   n:20, a:44,   b:64,   e:1.2 },
+  { nm:'H03 · M12 washer',         g:'bolt',  r:12,   n:20, a:64,   b:66.5, e:0.8 },
+  { nm:'H02 · M12 nyloc nut',      g:'bolt',  r:10.4, n:6,  a:66.5, b:79.5, e:0.5, rot:30 }
+];
+var PIN_IN = [
+  { nm:'H08 · Lock pin Ø12 (button cap)', g:'pin', r:13, n:16, a:-12, b:0,  e:2.6 },
+  { nm:'H08 · Lock pin Ø12 (shank)',      g:'pin', r:6,  n:12, a:0,   b:78, e:2.6 }
+];
+var PIN_OUT = [
+  { nm:'H08 · Lock pin Ø12 (pulled)',     g:'pin', r:13, n:16, a:-60, b:-48, e:2.6 },
+  { nm:'H08 · Lock pin Ø12 (shank)',      g:'pin', r:6,  n:12, a:-48, b:30,  e:2.6 }
+];
+var M8_STACK = [
+  { nm:'H09 · M8 hex bolt head', g:'bolt', r:7,  n:6,  a:-0.5, b:5.5, e:2.2, rot:30 },
+  { nm:'H09 · M8 washer',        g:'bolt', r:8,  n:16, a:5.5,  b:7,   e:1.9 },
+  { nm:'H09 · M8 nyloc nut',     g:'bolt', r:7,  n:6,  a:68,   b:76.5, e:0.4, rot:30 }
+];
+function hwStack(ctx, c, sx, xo, pieces, suffix){
+  pieces.forEach(function(q){
+    var poly = ngon(c, q.r, q.n, q.rot || 0);
+    var x0 = xo - q.b, x1 = xo - q.a;
+    if(sx < 0){ var t = x0; x0 = -x1; x1 = -t; }
+    ctx.prism(q.nm + (suffix || ''), q.g, x0, x1, poly, [sx*q.e, 0, 0], { bom:false });
+  });
+}
+
 /* parts whose pointed corners are softened (EN 581-1 asks for rounded or chamfered edges) */
 var SOFTEN = { F3:[10,6], T4:[8,6], T5:[8,6] };
 
@@ -1455,14 +1492,13 @@ DESIGNS.folding = {
         var c = tf(m.asm)([m.y, m.z]);
         [1,-1].forEach(function(sx){
           var xf = sx*(m.x + d), poly, h, g, nm;
-          if(m.k === 'pivot'){ poly = ngon(c, 18, 18); h = 3; g = 'pivot'; nm = 'Pivot '+m.label+' · M12 on Ø18 sleeve'; }
-          else if(m.k === 'pin'){ poly = ngon(c, 6, 12); h = (atTable||atBench) ? 28 : 3; g = 'pin';
-                                  nm = 'Lock pin Ø12'+((atTable||atBench) ? ' · engaged' : ' · pulled'); }
-          else if(m.k === 'm8'){ poly = ngon(c, 8, 6, 30); h = 2; g = 'bolt'; nm = 'M8 bolt · '+m.joint; }
-          else if(m.k === 'screw'){ poly = ngon(c, 4, 8); h = 1.5; g = 'screw'; nm = '5×70 screw · '+m.joint; }
+          if(m.k === 'pivot'){ hwStack(ctx, c, sx, m.x + d, PIVOT_STACK, ' · pivot '+m.label); return; }
+          else if(m.k === 'pin'){ hwStack(ctx, c, sx, m.x + d, (atTable||atBench) ? PIN_IN : PIN_OUT, ''); return; }
+          else if(m.k === 'm8'){ hwStack(ctx, c, sx, m.x + d, M8_STACK, ' · '+m.joint); return; }
+          else if(m.k === 'screw'){ poly = ngon(c, 4.5, 8); h = 1.5; g = 'screw'; nm = 'H10 · 5×70 screw · '+m.joint; }
           else if(m.k === 'boardscrew'){
             var n = lift(m.asm), cc = [c[0]+n[1]*1.5, c[1]+n[2]*1.5];
-            ctx.prism('5×70 board screw · '+m.joint, 'screw', xf-3, xf+3, ngon(cc, 3.5, 8), [sx*1.1,0,0], { bom:false });
+            ctx.prism('H10 · 5×70 board screw · '+m.joint, 'screw', xf-3, xf+3, ngon(cc, 3.5, 8), [sx*1.1,0,0], { bom:false });
             return;
           } else return;
           var x0 = sx > 0 ? xf : xf - h, x1 = sx > 0 ? xf + h : xf;
@@ -3865,6 +3901,7 @@ var SUPPLIERS = {
   ace:      { name:'ACE (Yigal Alon 59 TA / HaMerkava 38 Holon)', tel:'03-6870405', url:'https://www.ace.co.il/stores' },
   gueta:    { name:'Gueta Avigdor (גואטה אביגדור), Rishon LeZion', tel:'050-9512625', url:'https://shop.guetaavigdor.co.il/product/%D7%A2%D7%A5-%D7%90%D7%95%D7%A8%D7%9F-%D7%9E%D7%95%D7%A7%D7%A6%D7%A2-%D7%95%D7%9E%D7%97%D7%95%D7%98%D7%90-%D7%91%D7%A4%D7%A8%D7%95%D7%A4%D7%99%D7%9C-45x92-%D7%9E%D7%9E/' },
   shults:   { name:'Shults (שולץ), Ra\'anana', tel:'09-7461920', url:'https://shults.co.il/shop/%D7%A2%D7%A5/%D7%A2%D7%A5-%D7%9C%D7%93%D7%A7/%D7%A2%D7%A5-%D7%90%D7%95%D7%A8%D7%9F-45-95-%D7%9E%D7%9E-%D7%9E%D7%95%D7%A7%D7%A6%D7%A2-%D7%95%D7%9E%D7%97%D7%95%D7%98%D7%90/' },
+  hdhs:     { name:'Hilik & Dani (חיליק את דני), online', tel:'', url:'https://www.hdhs.co.il/' },
   mhdr:     { name:'MHDR-Elec (online)', tel:'', url:'https://www.mhdr-elec.com/items/3118711-%D7%9E%D7%A7%D7%93%D7%97%D7%99-%D7%A4%D7%95%D7%A8%D7%A1%D7%98%D7%A0%D7%A8-%D7%A7%D7%95%D7%98%D7%A8-35-%D7%9E-%D7%9E-TOTAL' }
 };
 
@@ -3872,50 +3909,56 @@ var SUPPLIERS = {
 var CATALOG = [
   { k:'bolt12', rx:/M12[^,;]*hex bolt|hex bolt[^,;]*M12/i, cat:'Bolts, nuts & washers',
     name:'Hex bolt M12 × 80, full thread, stainless A4 (316)', no:'DIN 933 / ISO 4017 M12×80 A4-70', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?path=333', price:12.98, unit:'pc' },
+    url:'https://galboreg-shop.co.il/category/?path=333', price:12.98, unit:'pc', exact:false, look:'"משושה 316 מלאה M 12X80" (DIN 933)',
+    alt:{ name:'Barsys — 316 DIN 933 series, M12×80 P/N S36016281100 (200-pc packs)', url:'https://www.barsys.co.il/product/s360/' } },
   { k:'nyloc12', rx:/M12 nyloc/i, cat:'Bolts, nuts & washers',
     name:'Nyloc nut M12, stainless 316', no:'DIN 985 M12 A4 · SKU CH1405790414', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?path=30_181_184', price:18.53, unit:'pc' },
+    url:'https://galboreg-shop.co.il/category/?path=30_181_184', price:null, unit:'pc', exact:false, look:'"אום ניילוק 316 - M12" (DIN 985)',
+    note:'Search snippets show both ₪6.84 and ₪18.53 — confirm on the page.' },
   { k:'washer12', rx:/M12[^,;]*washer|washer[^,;]*M12/i, cat:'Bolts, nuts & washers',
     name:'Flat washer M12 (Ø24), stainless 316', no:'DIN 125 / ISO 7089 M12 A4 · SKU CN1405788862', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?path=177', price:4.96, unit:'pc' },
+    url:'https://galboreg-shop.co.il/category/?path=177', price:4.96, unit:'pc', exact:false, look:'"דיסקית שטוחה 316 - M12" (DIN 125)' },
   { k:'m8set', rx:/M8×65|M8 × 65/i, cat:'Bolts, nuts & washers',
     name:'M8 × 65 hex bolt + 2 washers + nyloc, stainless 316', no:'DIN 933 M8×65 A4 + DIN 125 M8 + DIN 985 M8 (SKU CF1405788838)', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?path=327', price:null, unit:'set', note:'Nyloc ₪7.16, washers ₪1.77 each; bolt price on request.' },
+    url:'https://galboreg-shop.co.il/category/?path=327', price:null, unit:'set', exact:false, look:'M8×65 in 316 (304 if 316 is out)',
+    note:'M8 nyloc 316 and M8 washer 316 are in the nyloc / washer categories; no M8×65 316 page found — call 03-9665902.' },
   { k:'m10set', rx:/M10/i, cat:'Bolts, nuts & washers',
     name:'M10 hex bolt (length = stack + 20) + 2 washers + nyloc, stainless 316', no:'DIN 933 M10 A4 + DIN 125 M10 + DIN 985 M10', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?path=327', price:null, unit:'set' },
+    url:'https://galboreg-shop.co.il/index.php?product_id=6045&route=product%2Fproduct', price:null, unit:'set', exact:true,
+    note:'Linked page is M10×120 316 (≈ ₪22 + VAT); ×100 and ×200 also listed.' },
   { k:'tube18', rx:/tube OD18|OD18 ×/i, cat:'Pivot bearings (tube, bushings, washers)',
     name:'Stainless tube 316L, seamless, OD 18 × 2.0 wall (ID 14) — cut into 54.5 mm sleeves', no:'316L instrumentation tube 18×2', sup:'technobar',
-    url:'https://www.technobar.co.il/cnrt/cinvrvt-lmkwvr-tubes', price:null, unit:'sleeve', note:'Buy 0.5 m; quote only.' },
+    url:'https://www.technobar.co.il/cnrt/cinvrvt-lmkwvr-tubes', price:null, unit:'sleeve', exact:false, look:'"צינור 316L, A213, ללא תפר, ע.ד. 2 מ״מ, קוטר חיצוני 18 מ״מ"', note:'Buy 0.5 m; quote only.' },
   { k:'bush', rx:/bushing/i, cat:'Pivot bearings (tube, bushings, washers)',
     name:'Plain bush, oil-impregnated sintered bronze, ID 18 / OD 22 × 25 (and × 20)', no:'DIN 1850 / ISO 2795 — 18×22×25 and 18×22×20', sup:'shinitzky',
-    url:SUPPLIERS.shinitzky.url, price:null, unit:'pc', note:'Call to order; fallback: have POM bushes turned from Ø25 rod.' },
+    url:SUPPLIERS.shinitzky.url, price:null, unit:'pc', exact:false, look:'not listed online in Israel — call',
+    note:'No Israeli listing found for 18×22 bronze bushes. Call Shinitzky, or have POM (acetal) bushes turned from Ø25 rod by a lathe shop.' },
   { k:'thrust', rx:/thrust washer/i, cat:'Pivot bearings (tube, bushings, washers)',
     name:'UHMW-PE (PE1000) sheet 3 mm — cut Ø48 discs, Ø18.5 hole', no:'PE1000 3 mm offcut ≈ 200 × 300', sup:'babigum',
-    url:SUPPLIERS.babigum.url, price:null, unit:'disc', note:'One offcut makes all discs (hole saw + 18 mm drill).' },
+    url:SUPPLIERS.babigum.url, price:null, unit:'disc', exact:true, note:'One offcut makes all discs (hole saw + 18 mm drill). Ask for PE1000 / UHMW grade.' },
   { k:'pin', rx:/ball-lock/i, cat:'Lock pins',
     name:'Ball-lock quick-release pin Ø12 × 90 to balls, stainless, push button, with lanyard', no:'Ø12 × 90 stainless ball-lock pin', sup:'camping',
-    url:SUPPLIERS.camping.url, price:65, unit:'pc', note:'+ ₪41 shipping per order.' },
+    url:SUPPLIERS.camping.url, price:65, unit:'pc', exact:true, note:'+ ₪41 shipping per order.' },
   { k:'screw5', rx:/5\s*×\s*70|5×70/i, cat:'Wood screws',
     name:'Torx wood screw 5 × 70, stainless, countersunk', no:'Noyman model 416615 (5×70 A2)', sup:'noyman',
-    url:SUPPLIERS.noyman.url, price:0.77, unit:'pc' },
+    url:SUPPLIERS.noyman.url, price:0.77, unit:'pc', exact:true },
   { k:'screw6', rx:/6\s*×\s*80|6 × 110|6×110/i, cat:'Wood screws',
     name:'Torx wood screw 6 × 70–80, stainless, countersunk', no:'Noyman 6/70 A2 (or SPAX 6×80 A2 at Etz HaMahlef)', sup:'noyman6',
-    url:SUPPLIERS.noyman6.url, price:1.30, unit:'pc' },
+    url:SUPPLIERS.noyman6.url, price:1.30, unit:'pc', exact:true },
   { k:'glue', rx:/glue|adhesive/i, cat:'Glue & finish',
     name:'Polyurethane wood glue PUR D4, 500 ml', no:'SOMA FIX S605 PUR D4', sup:'villager',
-    url:SUPPLIERS.villager.url, price:29, unit:'bottle' },
+    url:SUPPLIERS.villager.url, price:29, unit:'bottle', exact:true },
   { k:'oil', rx:/sealer|oil|preservative/i, cat:'Glue & finish',
     name:'Clear deck oil, 1 L (three flood coats on every end grain)', no:'Tambour clear deck oil · Home Center 4041106213', sup:'homecenter',
-    url:SUPPLIERS.homecenter.url, price:114.90, unit:'1 L' },
+    url:SUPPLIERS.homecenter.url, price:114.90, unit:'1 L', exact:true },
   { k:'glide', rx:/glide/i, cat:'Glue & finish',
-    name:'Nail-in plastic furniture glide Ø40', no:'generic', sup:'ace', url:SUPPLIERS.ace.url, price:null, unit:'pc' },
+    name:'Nail-in nylon furniture glide Ø26, white, pack of 8', no:'FIXER · Home Center 8080906950', sup:'homecenter',
+    url:'https://www.homecenter.co.il/products/8080906950', price:1.25, unit:'pc', exact:true, note:'₪10 per pack of 8. Ø40 nail-in glides were not found; Ø26 is fine under a 38 mm leg.' },
   { k:'dowel', rx:/dowel/i, cat:'Lock pins',
     name:'Stainless pin Ø12 × 60 (clevis pin DIN 1444 or cut 316 rod), chamfered', no:'DIN 1444 Ø12 A4 / 316 rod Ø12', sup:'galboreg',
-    url:'https://galboreg-shop.co.il/category/?page=9&path=231', price:null, unit:'pc' },
+    url:'https://galboreg-shop.co.il/category/?path=231', price:null, unit:'pc', exact:false, look:'"פין מלא נירוסטה" Ø12 — or ask for 316 round bar Ø12 cut to 60' },
   { k:'barrel', rx:/barrel bolt|tower bolt/i, cat:'Lock pins',
-    name:'Barrel bolt 100 mm, stainless', no:'generic', sup:'ace', url:SUPPLIERS.ace.url, price:null, unit:'pc' },
+    name:'Barrel bolt 100 mm, stainless', no:'Bitter "בריח נירוסטה מסיבי" 100 mm', sup:'ace', url:'https://bitter.co.il/product/category/90/%D7%91%D7%A8%D7%99%D7%97%D7%99%D7%9D-%D7%97%D7%99%D7%A6%D7%95%D7%A0%D7%99%D7%99%D7%9D.aspx', price:null, unit:'pc', exact:false, look:'"בריח נירוסטה מסיבי 13 מ״מ" 100 mm' },
   { k:'uhmw', rx:/UHMW-PE tape|UHMW strip/i, cat:'Pivot bearings (tube, bushings, washers)',
     name:'UHMW-PE strip / tape 2 × 50 mm', no:'PE1000 2 mm strip', sup:'babigum', url:SUPPLIERS.babigum.url, price:null, unit:'pc' },
   { k:'misc', rx:/latch|hook|handle/i, cat:'Lock pins',
@@ -3937,7 +3980,7 @@ function buyList(model, S, nest){
     var n = g.bins.length, m = n*S.cut.len/1000;
     rows.push({ cat:'Timber', name:'Planed pressure-treated pine '+g.sec+' mm, '+S.cut.len+' mm lengths',
       no: g.sec === '38×89' ? 'Buy 42×92 / 45×95 and have the yard plane to 38×89' : g.sec+' planed & treated',
-      qty:n, unit:'bars', sup:'gueta', url:SUPPLIERS.gueta.url, price:Math.round(14*S.cut.len/100)/10,
+      qty:n, unit:'bars', sup:'gueta', url:SUPPLIERS.gueta.url, price:Math.round(14*S.cut.len/100)/10, exact:true,
       note: m.toFixed(1)+' m. ₪14/m listed (sale). Alternative: '+SUPPLIERS.shults.name+'.' });
   });
   /* hardware lines, matched to the catalogue (spec text decides) */
@@ -3949,14 +3992,16 @@ function buyList(model, S, nest){
       var len = (h.spec.match(/OD\s?22\s?×\s?(\d+)/) || [])[1] || '25';
       c = Object.assign({}, c, { name:'Plain bush, oil-impregnated sintered bronze, ID 18 / OD 22 × '+len, no:'DIN 1850 / ISO 2795 — 18 × 22 × '+len });
     }
-    rows.push(c ? { cat:c.cat, ref:h.id, name:c.name, no:c.no, qty:qty, unit:c.unit, sup:c.sup, url:c.url, price:c.price,
+    rows.push(c ? { cat:c.cat, ref:h.id, name:c.name, no:c.no, qty:qty, unit:c.unit, sup:c.sup, url:c.url, price:c.price, exact:c.exact, look:c.look, alt:c.alt,
                     note:(tubeLen ? qty+' sleeves × 54.5 mm = '+Math.round(qty*55)+' mm of tube. ' : '')+(c.note || '') }
                 : { cat:'Other', ref:h.id, name:h.spec, no:'', qty:qty, unit:'', sup:null, url:null, price:null, note:h.note || '' });
   });
   /* tools, only if the model has pivots */
   if((model.hardware || []).some(function(h){ return /bushing/i.test(h.spec); })){
-    rows.push({ cat:'Tools (one-off)', name:'Forstner bit Ø35 (counterbores for the M12 washer + socket)', no:'TOTAL TCT Forstner 35 mm', qty:1, unit:'pc', sup:'mhdr', url:SUPPLIERS.mhdr.url, price:37 });
-    rows.push({ cat:'Tools (one-off)', name:'Forstner bit or bi-metal hole saw Ø22 (bushing bores)', no:'Ø22 — call a plumbing / HVAC supplier', qty:1, unit:'pc', sup:'ace', url:SUPPLIERS.ace.url, price:null });
+    rows.push({ cat:'Tools (one-off)', name:'Forstner bit Ø35 (counterbores for the M12 washer + socket)', no:'TOTAL TCT Forstner 35 mm', qty:1, unit:'pc', sup:'mhdr', url:SUPPLIERS.mhdr.url, price:37, exact:true });
+    rows.push({ cat:'Tools (one-off)', name:'Hole saw Ø22 for wood (bushing bores)', no:'CONVET 22 mm (7/8") · Hilik & Dani', qty:1, unit:'pc', sup:'hdhs',
+      url:'https://www.hdhs.co.il/product/%D7%9E%D7%A7%D7%93%D7%97-%D7%9B%D7%95%D7%A1-%D7%A2%D7%A5-%D7%91%D7%A8%D7%96%D7%9C-22-%D7%9E%D7%9E-7-8-convet/', price:11.54, exact:true,
+      note:'Cleaner bore: ALPEN Forstner 22 mm at Tecnik (≈ ₪98).' });
     rows.push({ cat:'Tools (one-off)', name:'Brad-point drill Ø12.5 (lock-pin holes) and Ø3 / Ø3.5 pilots', no:'generic', qty:1, unit:'set', sup:'ace', url:SUPPLIERS.ace.url, price:null });
   }
   rows.forEach(function(r){ r.line = (r.price != null) ? r.price*r.qty : null; });
@@ -4039,7 +4084,11 @@ function renderBuy(){
     h.push('<tr><td class="dim">'+(i+1)+(r.ref ? '<br><span class="ref">'+xesc(r.ref)+'</span>' : '')+'</td>'+
       '<td>'+xesc(r.name)+(r.note ? '<div class="dim small">'+xesc(r.note)+'</div>' : '')+'</td>'+
       '<td class="dim small">'+xesc(r.no)+'</td><td class="num">'+r.qty+' '+xesc(r.unit)+'</td>'+
-      '<td>'+(sup ? '<a href="'+xesc(r.url || sup.url)+'" target="_blank" rel="noopener">'+xesc(sup.name)+' ↗</a>'+(sup.tel ? '<div class="dim small">'+sup.tel+'</div>' : '') : '—')+'</td>'+
+      '<td>'+(sup ? '<a href="'+xesc(r.url || sup.url)+'" target="_blank" rel="noopener">'+xesc(sup.name)+' ↗</a>'+
+        (r.exact ? '<div class="small" style="color:var(--green)">✓ product page</div>'
+                 : '<div class="small" style="color:var(--pencil)">category page — look for '+xesc(r.look || 'the size above')+'</div>')+
+        (r.alt ? '<div class="small"><a href="'+xesc(r.alt.url)+'" target="_blank" rel="noopener">alt: '+xesc(r.alt.name)+' ↗</a></div>' : '')+
+        (sup.tel ? '<div class="dim small">'+sup.tel+'</div>' : '') : '—')+'</td>'+
       '<td class="num">'+(r.price != null ? r.price.toFixed(2) : 'ask')+'</td><td class="num">'+(r.line != null ? r.line.toFixed(0) : '—')+'</td></tr>');
   });
   h.push('<tr class="tot"><td></td><td colspan="5">Total of listed prices'+(unknown ? ' — plus '+unknown+' item(s) priced on request' : '')+'</td><td class="num">₪ '+total.toFixed(0)+'</td></tr></tbody></table>');
@@ -4142,7 +4191,8 @@ function allExports(){
   return EXPORTS.concat([
     { k:'buy.csv', label:'Shopping list — CSV', file:'shopping-list.csv', make:buyCSV },
     { k:'plan.md', label:'Assembly plan — Markdown', file:'assembly-plan.md', make:planMD },
-    { k:'bom.svg', label:'BOM sheet — SVG', file:'bom-sheet.svg', make:function(){ return svgBom(MODEL); } }
+    { k:'bom.svg', label:'BOM sheet — SVG', file:'bom-sheet.svg', make:function(){ return svgBom(MODEL); } },
+    { k:'asm.svg', label:'Assembly drawing (balloons + BOM) — SVG', file:'assembly-drawing.svg', make:function(){ return svgAssembly(MODEL); } }
   ]);
 }
 function renderFiles(){
@@ -4185,6 +4235,156 @@ function renderFiles(){
   };
 }
 
+/* ---- ASSEMBLY DRAWING: exploded isometric, balloons, BOM ----------------
+   One sheet: the model exploded along each part's own explode vector, drawn
+   with back-face culling + painter's sort, a numbered balloon on every
+   distinct item (timber part or hardware line) and the BOM with the same
+   numbers. Item numbers match the BOM sheet and the Buy tab. */
+function bomItems(model){
+  var by = partsById(model), timber = Object.keys(by).map(function(k){ return by[k]; })
+            .sort(function(a,b){ return String(a.id).localeCompare(String(b.id)) || a.name.localeCompare(b.name); });
+  var hw = buyList(model, S, NEST).filter(function(r){ return r.cat !== 'Timber' && r.cat !== 'Tools (one-off)'; });
+  var items = [];
+  timber.forEach(function(p){ items.push({ key:p.id+'|'+p.name, kind:'timber', label:p.name, qty:p.qty, desc:p.name, cat:p.sec+' · cut '+p.cut }); });
+  hw.forEach(function(r){ items.push({ key:'HW|'+(r.ref || r.name), ref:r.ref, kind:'hw', label:r.name, qty:r.qty+' '+r.unit, desc:r.name, cat:r.no, sup:r.sup, url:r.url }); });
+  items.forEach(function(it, i){ it.no = i+1; });
+  return items;
+}
+/* which BOM item a drawn part belongs to */
+function itemKeyForPart(p, items){
+  if(p.bom !== false) return (p.partId || p.name)+'|'+p.name;
+  var m = /^(H\d\d|P\d|F\d|S\d|D\d|G\d)\b/.exec(p.name), ref = m && m[1];
+  if(ref && items.some(function(it){ return it.key === 'HW|'+ref; })) return 'HW|'+ref;
+  /* concept designs: map by what the part is */
+  var rx = [[/pivot|M12/i, /M12 hex bolt|bolt M12/i], [/pin/i, /ball-lock|pin/i], [/M8/i, /M8/i], [/screw/i, /screw/i]];
+  for(var i=0;i<rx.length;i++) if(rx[i][0].test(p.name)){
+    var hit = items.filter(function(it){ return it.kind === 'hw' && rx[i][1].test(it.label); })[0];
+    if(hit) return hit.key;
+  }
+  return null;
+}
+function svgAssembly(model, opts){
+  opts = opts || {};
+  var E = opts.explode != null ? opts.explode : 260, items = bomItems(model), byKey = {};
+  items.forEach(function(it){ byKey[it.key] = it; });
+  var R2 = Math.SQRT2, R6 = Math.sqrt(6);
+  function P3(x, y, z){ return [ (x + y)/R2, -(-x + y + 2*z)/R6, (x - y + z)/Math.sqrt(3) ]; }
+  var faces = [], targets = {};
+  /* side-frame layers fan apart: the further a part sits from the centre, the further it flies */
+  var xref = Infinity;
+  model.parts.forEach(function(p){ if(p.prism && p.ex && p.ex[0] && p.bom !== false)
+    xref = Math.min(xref, Math.abs((p.prism.x0 + p.prism.x1)/2)); });
+  model.parts.forEach(function(p){
+    if(!p.prism) return;
+    var key = itemKeyForPart(p, items); if(!key || !byKey[key]) return;
+    var e = p.ex || [0,0,0], xc = (p.prism.x0 + p.prism.x1)/2, sg = xc < 0 ? -1 : 1;
+    var dx = e[0] ? e[0]*E*0.6 + sg*Math.max(0, Math.abs(xc) - xref)*1.8 : 0, dy = e[1]*E, dz = e[2]*E;
+    var poly = p.prism.poly, x0 = p.prism.x0 + dx, x1 = p.prism.x1 + dx, hw = p.bom === false;
+    var Q = poly.map(function(q){ return [q[0] + dy, q[1] + dz]; });
+    /* ccw in (y,z) */
+    var A = 0; for(var i=0;i<Q.length;i++){ var a=Q[i], b=Q[(i+1)%Q.length]; A += a[0]*b[1]-b[0]*a[1]; }
+    if(A < 0) Q = Q.slice().reverse();
+    var fill = hw ? (p.group === 'pivot' ? '#c9a24a' : p.group === 'pin' ? '#d0473f' : '#9aa3ad') : '#efe6d2';
+    function add(pts3, shade){
+      var pr = pts3.map(function(v){ return P3(v[0], v[1], v[2]); });
+      var depth = pr.reduce(function(s, v){ return s + v[2]; }, 0)/pr.length;
+      faces.push({ d:depth, pts:pr, fill:fill, shade:shade, hw:hw });
+    }
+    /* +X end cap is the only visible cap for a camera at (+X, −Y, +Z) */
+    add(Q.map(function(q){ return [x1, q[0], q[1]]; }), 0.92);
+    for(i=0;i<Q.length;i++){
+      var a = Q[i], b = Q[(i+1)%Q.length], ny = b[1]-a[1], nz = -(b[0]-a[0]);
+      if(-ny + nz <= 0) continue;
+      add([[x0,a[0],a[1]],[x1,a[0],a[1]],[x1,b[0],b[1]],[x0,b[0],b[1]]], nz > Math.abs(ny) ? 1 : 0.8);
+    }
+    /* balloon target: the instance nearest the camera */
+    var cy = 0, cz = 0; Q.forEach(function(q){ cy += q[0]; cz += q[1]; }); cy /= Q.length; cz /= Q.length;
+    var c = P3(x1, cy, cz);
+    if(!targets[key]) targets[key] = { c:c, key:key, all:[] };
+    targets[key].all.push(c);
+    if(c[2] > targets[key].c[2]) targets[key].c = c;
+  });
+  faces.sort(function(a,b){ return a.d - b.d; });
+  var xs = [], ys = [];
+  faces.forEach(function(f){ f.pts.forEach(function(v){ xs.push(v[0]); ys.push(v[1]); }); });
+  var bx0 = Math.min.apply(null, xs), bx1 = Math.max.apply(null, xs), by0 = Math.min.apply(null, ys), by1 = Math.max.apply(null, ys);
+  var dw = 1500, sc = Math.min(dw/(bx1 - bx0), 980/(by1 - by0)), M = 120;
+  function X(v){ return M + 60 + (v - bx0)*sc; } function Y(v){ return 170 + (v - by0)*sc; }
+  var out = [];
+  faces.forEach(function(f){
+    var shade = f.shade, col = f.fill;
+    out.push('<polygon points="'+f.pts.map(function(v){ return X(v[0]).toFixed(1)+','+Y(v[1]).toFixed(1); }).join(' ')+
+      '" fill="'+col+'" fill-opacity="'+(f.hw ? 1 : 1)+'" stroke="#2b2b2b" stroke-width="'+(f.hw ? 0.4 : 0.7)+'" style="filter:brightness('+shade+')"/>');
+  });
+  /* balloons on an ellipse round the drawing, in the angular order of their targets,
+     so the leader lines fan out without crossing */
+  var tl = Object.keys(targets).map(function(k){ return targets[k]; });
+  var ecx = (X(bx0) + X(bx1))/2, ecy = (Y(by0) + Y(by1))/2;
+  var ra = (X(bx1) - X(bx0))/2 + 70, rb = (Y(by1) - Y(by0))/2 + 60;
+  tl.forEach(function(t){ t.a = Math.atan2((Y(t.c[1]) - ecy)/rb, (X(t.c[0]) - ecx)/ra); });
+  tl.sort(function(a,b){ return a.a - b.a; });
+  /* evenly spaced slots all round the ellipse, in the same angular order as the
+     targets (so leaders never cross), rotated to the best overall fit; then each
+     item points at whichever of its copies is nearest its own balloon */
+  var n = tl.length, step = 2*Math.PI/Math.max(n, 1), best = null;
+  for(var off = 0; off < 2*Math.PI; off += step/8){
+    var cost = 0;
+    tl.forEach(function(t, i){ var d = Math.abs(((off + i*step) - t.a + 3*Math.PI) % (2*Math.PI) - Math.PI); cost += d*d; });
+    if(!best || cost < best.c) best = { c:cost, off:off };
+  }
+  var ang = tl.map(function(t, i){ return best.off + i*step; });
+  tl.forEach(function(t, i){
+    var bx0b = ecx + ra*Math.cos(ang[i]), by0b = ecy + rb*Math.sin(ang[i]);
+    t.c = t.all.reduce(function(m, c){
+      var dm = Math.hypot(X(m[0]) - bx0b, Y(m[1]) - by0b), dc = Math.hypot(X(c[0]) - bx0b, Y(c[1]) - by0b);
+      return dc < dm ? c : m; }, t.c);
+  });
+  tl.forEach(function(t, i){
+    var bx = ecx + ra*Math.cos(ang[i]), by = ecy + rb*Math.sin(ang[i]), item = byKey[t.key];
+    out.push('<line x1="'+X(t.c[0]).toFixed(1)+'" y1="'+Y(t.c[1]).toFixed(1)+'" x2="'+bx.toFixed(1)+'" y2="'+by.toFixed(1)+'" stroke="#1a5fb4" stroke-width="0.8"/>');
+    out.push('<circle cx="'+X(t.c[0]).toFixed(1)+'" cy="'+Y(t.c[1]).toFixed(1)+'" r="2.4" fill="#1a5fb4"/>');
+    out.push('<circle cx="'+bx.toFixed(1)+'" cy="'+by.toFixed(1)+'" r="15" fill="#fff" stroke="#1a5fb4" stroke-width="1.4"/>');
+    out.push('<text x="'+bx.toFixed(1)+'" y="'+(by + 4.5).toFixed(1)+'" text-anchor="middle" font-size="13" font-weight="700" fill="#1a5fb4">'+item.no+'</text>');
+  });
+  var bot = ecy + rb + 30;
+  var drawW = ecx + ra + 40;
+  /* BOM table to the right */
+  var tx = drawW + 30, ty = 70, lh = 20, tw = 860, rows = ['<text x="'+tx+'" y="'+ty+'" font-size="15" font-weight="700">BILL OF MATERIALS</text>'];
+  ty += 14;
+  var cols = [0, 46, 120, 520];
+  rows.push('<rect x="'+tx+'" y="'+ty+'" width="'+tw+'" height="'+(lh*(items.length + 1) + 6)+'" fill="none" stroke="#333"/>');
+  ty += lh;
+  ['NO.', 'QTY', 'ITEM', 'SECTION / CATALOG NO.'].forEach(function(h, i){ rows.push('<text x="'+(tx + 8 + cols[i])+'" y="'+(ty - 5)+'" font-size="10" fill="#555">'+h+'</text>'); });
+  items.forEach(function(it){
+    var drawn = !!targets[it.key];
+    ty += lh;
+    rows.push('<line x1="'+tx+'" x2="'+(tx + tw)+'" y1="'+(ty - lh + 5)+'" y2="'+(ty - lh + 5)+'" stroke="#ddd"/>');
+    rows.push('<circle cx="'+(tx + 18)+'" cy="'+(ty - 5)+'" r="8.5" fill="#fff" stroke="'+(drawn ? '#1a5fb4' : '#aaa')+'"/>'+
+      '<text x="'+(tx + 18)+'" y="'+(ty - 1.5)+'" text-anchor="middle" font-size="10" font-weight="700" fill="'+(drawn ? '#1a5fb4' : '#888')+'">'+it.no+'</text>');
+    rows.push('<text x="'+(tx + 8 + cols[1])+'" y="'+(ty - 1)+'" font-size="11">'+xesc(String(it.qty))+'</text>');
+    var lab = it.desc.length > 58 ? it.desc.slice(0, 56)+'…' : it.desc, cat = (it.cat || '').length > 48 ? it.cat.slice(0, 46)+'…' : (it.cat || '');
+    rows.push('<text x="'+(tx + 8 + cols[2])+'" y="'+(ty - 1)+'" font-size="11">'+xesc(lab)+'</text>');
+    rows.push(it.url ? '<a href="'+xesc(it.url)+'" target="_blank"><text x="'+(tx + 8 + cols[3])+'" y="'+(ty - 1)+'" font-size="10.5" fill="#1a5fb4" text-decoration="underline">'+xesc(cat)+'</text></a>'
+                     : '<text x="'+(tx + 8 + cols[3])+'" y="'+(ty - 1)+'" font-size="10.5" fill="#444">'+xesc(cat)+'</text>');
+  });
+  ty += 30;
+  rows.push('<text x="'+tx+'" y="'+ty+'" font-size="10" fill="#666">Grey balloon = item not visible in this view (screws inside counterbores, glue, oil). Hardware is shown exploded along its bolt axis.</text>');
+  var W = tx + tw + 30, H = Math.max(bot + 160, ty + 140);
+  /* title block */
+  var tb = '<g transform="translate('+(W - 520)+','+(H - 110)+')"><rect width="500" height="90" fill="#fff" stroke="#333"/>'+
+    '<line x1="0" y1="30" x2="500" y2="30" stroke="#333"/><line x1="300" y1="30" x2="300" y2="90" stroke="#333"/>'+
+    '<text x="10" y="21" font-size="14" font-weight="700">'+xesc(DESIGNS[S.designId].name+' — '+DESIGNS[S.designId].variants[S.variantId].name)+'</text>'+
+    '<text x="10" y="50" font-size="11">ASSEMBLY — EXPLODED ISOMETRIC · not to scale</text>'+
+    '<text x="10" y="70" font-size="9.5">'+xesc((model.headline || '').slice(0, 64))+'</text>'+
+    '<text x="310" y="50" font-size="11">Units: mm · Sheet A-1</text>'+
+    '<text x="310" y="70" font-size="11">'+new Date().toISOString().slice(0,10)+'</text></g>';
+  return '<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 '+W+' '+H+'" width="'+W+'" style="display:block;margin:0 auto;background:#fff;font-family:Helvetica,Arial,sans-serif">'+
+    '<rect x="8" y="8" width="'+(W-16)+'" height="'+(H-16)+'" fill="none" stroke="#333" stroke-width="1.5"/>'+
+    '<text x="40" y="60" font-size="20" font-weight="700">ASSEMBLY DRAWING</text>'+
+    '<text x="40" y="84" font-size="12" fill="#555">Explode '+E+' mm · balloons match the BOM, the Buy / BOM tab and the BOM sheet</text>'+
+    out.join('') + rows.join('') + tb + '</svg>';
+}
+
 /* </EXTRAS> */
 /* ---- rebuild ---- */
 function rebuild(){
@@ -4218,7 +4418,7 @@ function rebuild(){
     areaSyncers.forEach(function(f){ f(); });
     renderSheetStock();
     renderCut(); renderNest(); renderCompare(); renderChecks(); renderHardware(); renderCost(); renderExport(); renderBuy(); renderFiles();
-    if(VIEWTAB==='draw') renderDrawing(); else draw();
+    if(VIEWTAB!=='3d') renderDrawing(); else draw();
   }catch(e){
     var el=document.getElementById('err');
     el.style.display='grid';
@@ -4227,6 +4427,7 @@ function rebuild(){
   }
 }
 function renderDrawing(){
+  if(VIEWTAB==='asm'){ document.getElementById('svgWrap').innerHTML = svgAssembly(MODEL); return; }
   setTimeout(function(){ document.getElementById('svgWrap').insertAdjacentHTML('beforeend', svgBom(MODEL)); }, 0);
   document.getElementById('svgWrap').innerHTML = svgDrawing(MODEL, {
     title: DESIGNS[S.designId].name+' — '+DESIGNS[S.designId].variants[S.variantId].name,
@@ -4353,7 +4554,7 @@ document.querySelectorAll('#vtabs button').forEach(function(b){
   b.onclick=function(){
     document.querySelectorAll('#vtabs button').forEach(function(x){ x.classList.remove('on'); });
     b.classList.add('on'); VIEWTAB=b.dataset.vt;
-    var isDraw=VIEWTAB==='draw';
+    var isDraw=VIEWTAB!=='3d';
     document.getElementById('svgWrap').style.display=isDraw?'block':'none';
     cv.style.display=isDraw?'none':'block';
     document.getElementById('tip').style.display=isDraw?'none':'block';
