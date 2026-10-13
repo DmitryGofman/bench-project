@@ -938,7 +938,7 @@ function makeSwingSlide(K, P, how){
     inner.push({ name:'BL · Second-bench leg', g:'rail', asm:'sled', poly:CK.rect(yF1 - w, 0, yF1, lz),
       xs:function(L){ var x = L/2 - sledEnd - inset; return [[x - t, x], [-x, -x + t]]; } });
     sledMove = function(v){ var up = Math.sin(Math.PI*v)*60; return CK.move(v*join, up); };
-    sledNote = 'is lifted (≈ '+Math.round((nF*K.bw*bt*2000 + 4*t*w*S + 2*t*w*DF)*5e-7)+' kg at 2 m) and dropped against the main seat';
+    sledNote = 'is lifted and dropped against the main seat';
     extraHW = [{ id:'S1', qty:4, spec:'Ø12 × 60 stainless dowel', note:'Two per end on the main seat edge; holes in the second-bench cleats locate it.' },
                { id:'S2', qty:2, spec:'Stainless hook-and-eye or toggle latch', note:'Holds the two benches together as a sofa.' }];
     sledKg = (nF*K.bw*bt*(P.L - 2*sledEnd - 2*inset) + 4*t*w*lz + 2*t*w*DF)*5e-7;
