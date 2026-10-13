@@ -29,6 +29,16 @@ Four clean-sheet bench ↔ table designs built on a shared engine (`concepts-pro
 | C3 Level-lift | top on parallel links, stays level | table / daybed with fixed back | 1.5 m × 1.8 m |
 | C4 Lift-off leaves | none: two loose leaves | table / backed lounger / flat daybed | 1.6 m × 1.8 m |
 
+## Swing-top variants (`swing.html`)
+The swing-top (C2) with a second bench that joins the main seat into a sofa, built in four ways. All four share arm planks fixed to the swing arms: armrests and carry handles in bench mode, slanted struts landing on stop blocks in table mode. They also share a rear kick foot so leaning back cannot tip the bench. *Convert* 0–50 % swings the top; 50–100 % moves the second bench.
+
+| Variant | Second bench | Sofa |
+|---|---|---|
+| S1 Runner slide | legless, slides on UHMW-faced wooden ledgers | ≈ 800 deep, back + arms |
+| S2 Free dock | loose 3-board stool-bench, dowel-docked | ≈ 700 deep |
+| S3 Glide links | hung on parallel links, swings back level | ≈ 800 deep |
+| S4 Tumble stool | box stool: seat upright, footrest / stored under the seat on its side | main seat + footrest |
+
 Suppliers: `suppliers.html` (`suppliers-tel-aviv.md`).
 
 ## Mobile

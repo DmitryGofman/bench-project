@@ -1373,7 +1373,12 @@ function conceptBuild(C, P, ctx){
   });
   (C.inner || []).forEach(function(q){
     var poly = q.poly.map(tf(q.asm)), xs = q.xs(L);
-    xs.forEach(function(xr){ ctx.prism(q.name, q.g, xr[0], xr[1], poly, lift(q.asm), { note:q.note }); });
+    var yy = q.poly.map(function(v){ return v[0]; }), zz = q.poly.map(function(v){ return v[1]; });
+    var d1 = Math.max.apply(null,yy) - Math.min.apply(null,yy), d2 = Math.max.apply(null,zz) - Math.min.apply(null,zz);
+    xs.forEach(function(xr){
+      ctx.prism(q.name, q.g, xr[0], xr[1], poly, lift(q.asm),
+        { note:q.note, T:Math.round(Math.min(d1, d2)), W:Math.round(Math.max(d1, d2)), cut:Math.round(xr[1] - xr[0]) });
+    });
   });
   C.boards.forEach(function(b){
     var poly = b.poly.map(tf(b.asm)), x = L/2 - b.inset;
@@ -2025,6 +2030,274 @@ DESIGNS.concept4 = {
     set:{ L:2000, mid:'auto', mode:'table' } } },
   build:function(P, ctx){ return conceptBuild(makeLeaf(stockTW(ctx), P), P, ctx); }
 };
+
+/* =========================================================================
+   SWING-TOP + SLIDING SECOND BENCH — four ways to bring the front bench
+   back to the main bench, all sharing the swing-top frame:
+     · the tabletop swings 105° back on one pivot per end to become the back;
+     · ARM PLANKS fixed to each swing arm: horizontal armrests / carry handles
+       in bench mode, and in table mode they swing down into slanted struts
+       that land on a stop block — a second hard stop and a brace for the top;
+     · the second bench is shorter than the main one (it lives between the end
+       frames), so it can move back and join the rear seat into one deep
+       sofa / daybed with a back and two armrests.
+   fold 0 % = table · 0–50 % the top swings back · 50–100 % the bench moves.
+   ========================================================================= */
+function makeSwingSlide(K, P, how){
+  var t = K.t, w = K.w, bt = K.bt, S = CON.SEAT, TB = CON.TABLE, g = CON.GAP, p = K.bw + CON.PITCH_GAP;
+  var lay = { L0:[0,t], L1:[t+g, 2*t+g], L2:[2*t+2*g, 3*t+2*g], L3:[3*t+3*g, 4*t+3*g], L4:[4*t+4*g, 5*t+4*g] };
+  var nT = 8, Wt = nT*p - CON.PITCH_GAP, yT = Wt/2;
+  var nS = 4, Ds = nS*p - CON.PITCH_GAP, ov = 100;
+  var yS0 = yT - ov, yS1 = yS0 + Ds;                             /* rear (main) seat */
+  var ANG = -105, under = TB - bt;
+  var Pv = CK.pivotFor([yT, under], [yS1 + 12, S + 12], ANG);
+  var cleat = CK.rect(-yT, under - w, yT, under);
+  var boss = CK.hull(CK.circle(Pv, w/2 + 2, 20).concat([[yT - 2*w, under - w], [yT, under - w]]));
+  var post = CK.hull(CK.rect(Pv[0] - w/2, 0, Pv[0] + w/2, Pv[1]).concat(CK.circle(Pv, 140, 24)));
+  var lock = CK.lockPin2(post, CK.hull(boss.concat(cleat)), Pv, ANG, 16);
+  var stop = CK.rect(-yT, under - w - 3 - w, -yT + w, under - w - 3);
+  var fpost = CK.rect(-yT, 0, -yT + w, under - w - 3);
+  var toTable = CK.rot(Pv, -ANG);                                 /* bench frame → arm frame */
+  var KICK = 300;                                                 /* rear foot extension under the back */
+
+  /* ARM PLANK: drawn in bench pose — an armrest 200 mm above the seat, from the back
+     forward over the rear seat; stored in the arm's (table) frame */
+  var hz0 = S + 160, hy0 = yS0 + 20, hy1 = Pv[0] + 250;
+  var handleB = CK.rect(hy0, hz0, hy1, hz0 + w);
+  var handle = handleB.map(toTable);
+  /* its lower end in table pose lands on a block on the low rail */
+  var lo = handle.slice().sort(function(a,b){ return a[1]-b[1]; });
+  var e0 = lo[0], e1 = lo[1];                                     /* the bearing end edge */
+  var ya = Math.min(e0[0], e1[0]), yb = Math.max(e0[0], e1[0]);
+  var hstop = CK.hull([[ya, 100], [yb, 100], [e1[0], e1[1] - 1], [e0[0], e0[1] - 1]]);
+  var parts = [
+    { id:'LF', name:'LF · Front leg', g:'rail', asm:'frame', layer:'L0', poly:CK.rect(-yS1, 0, -yS1 + w, S - bt) },
+    { id:'LB', name:'LB · Rear leg', g:'rail', asm:'frame', layer:'L0', poly:CK.rect(yS1 - w, 0, yS1, S - bt) },
+    { id:'PP', name:'PP · Pivot post + head plate', g:'rail', asm:'frame', layer:'L0', poly:post, W:280 },
+    { id:'FP', name:'FP · Front stop post', g:'rail', asm:'frame', layer:'L0', poly:fpost },
+    { id:'LR', name:'LR · Low rail', g:'rail', asm:'frame', layer:'L1', poly:CK.rect(-yS1, 100 - w, yS1 + KICK, 100) },
+    { id:'RK', name:'RK · Rear kick foot', g:'rail', asm:'frame', layer:'L0', poly:CK.rect(yS1, 0, yS1 + KICK, 70),
+      note:'Carries the footprint back under the reclined back so leaning back hard cannot tip the sofa. Bolted through the low rail.' },
+    { id:'SF', name:'SF · Spacer, front leg', g:'rail', asm:'frame', layer:'L1', poly:CK.rect(-yS1, S - bt - w, -yS1 + w, S - bt) },
+    { id:'SR', name:'SR · Spacer, rear leg', g:'rail', asm:'frame', layer:'L1', poly:CK.rect(yS1 - w, S - bt - w, yS1, S - bt) },
+    { id:'SP', name:'SP · Spacer, pivot post', g:'rail', asm:'frame', layer:'L1', poly:CK.rect(Pv[0] - w/2, S - bt - w, Pv[0] + w/2, S - bt) },
+    { id:'ST', name:'ST · Table stop block', g:'rail', asm:'frame', layer:'L1', poly:stop },
+    { id:'SF2',name:'SF · Spacer, front leg (2)', g:'rail', asm:'frame', layer:'L2', poly:CK.rect(-yS1, S - bt - w, -yS1 + w, S - bt) },
+    { id:'SR2',name:'SR · Spacer, rear leg (2)', g:'rail', asm:'frame', layer:'L2', poly:CK.rect(yS1 - w, 0, yS1, 100) },
+    { id:'HS', name:'HS · Arm-plank stop block', g:'rail', asm:'frame', layer:'L2', poly:hstop, note:'Bolted to the low rail; the arm plank lands on it in table mode.' },
+    { id:'SB', name:'SB · Seat bearer', g:'rail', asm:'frame', layer:'L3', poly:CK.rect(-yS1, S - bt - w, yS1, S - bt) },
+    { id:'AC', name:'AC · Table cleat', g:'rail', asm:'arm', layer:'L1', poly:cleat },
+    { id:'AB', name:'AB · Pivot boss', g:'rail', asm:'arm', layer:'L1', poly:boss, W: Math.round(under - (Pv[1] - w/2 - 2)) },
+    { id:'HP', name:'HP · Arm plank (handle / table strut)', g:'rail', asm:'arm', layer:'L2', poly:handle,
+      note:'Bench: armrest and carry handle. Table: a slanted strut that lands on HS. Lapped and bolted (2 × M10) to the table cleat.' }
+  ];
+  var boards = [];
+  for(var i=0;i<nS;i++) boards.push({ id:'SR', name:'SS · Main seat board', g:'slat', asm:'frame', inset:lay.L3[0], poly:CK.rect(yS0 + i*p, S - bt, yS0 + i*p + K.bw, S) });
+  for(i=0;i<nT;i++) boards.push({ id:'TB', name:'TB · Table / back board', g:'slat', asm:'arm', inset:lay.L1[0], poly:CK.rect(-yT + i*p, under, -yT + i*p + K.bw, TB) });
+  var fasteners = [
+    { k:'pivot', name:'Pivot · M12 on Ø18 sleeve', asm:'frame', layer:'L0', at:Pv },
+    { k:'pin', name:'Lock pin Ø12 · table hole', asm:'frame', layer:'L0', at: lock ? lock.Q1 : [Pv[0], Pv[1]+90] },
+    { k:'pin', name:'Lock pin Ø12 · bench hole', asm:'frame', layer:'L0', at: lock ? lock.Q2 : [Pv[0], Pv[1]-90] }
+  ];
+
+  /* ---- the second bench: front seat in table pose, joined to the main seat in bench pose ---- */
+  var nF = how === 'free' ? 3 : 4, DF = nF*p - CON.PITCH_GAP;
+  var yF1 = -yS0, yF0 = yF1 - DF;                                  /* table pose, front edge yF0 */
+  var join = (yS0 - 3) - yF1;                                      /* how far it travels back */
+  var sledEnd = lay.L3[1] + 6;                                     /* inner face of the end frames */
+  var inner = [], sledMove, sledNote, extraHW = [], extraChecks = [], sledKg = 0;
+  function sledX(L, inset){ var x = L/2 - sledEnd - (inset||0); return [[-x, x]]; }
+  function sledBoards(z, inset, asm){
+    for(var k=0;k<nF;k++) inner.push({ name:'BS · Second-bench board', g:'slat', asm:asm||'sled',
+      poly:CK.rect(yF0 + k*p, z - bt, yF0 + k*p + K.bw, z), xs:function(L){ return sledX(L, inset); } });
+  }
+  function sledCleats(z, inset, asm, label){
+    inner.push({ name:label || 'BC · Second-bench end cleat', g:'rail', asm:asm||'sled',
+      poly:CK.rect(yF0, z - bt - w, yF1, z - bt),
+      xs:function(L){ var x = L/2 - sledEnd - (inset||0); return [[x - t, x], [-x, -x + t]]; } });
+  }
+  if(how === 'runner'){
+    /* D1 · runners: the second bench has no legs. Its end cleats sit on hardwood ledgers
+       screwed to the inside of the seat bearers and slide straight back. */
+    var ledger = CK.rect(-yS1, S - bt - w - 30, yS1, S - bt - w);
+    parts.push({ id:'RL', name:'RL · Runner ledger (UHMW-faced)', g:'rail', asm:'frame', layer:'L4', poly:ledger,
+      note:'45 × 30 hardwood or 45 × 95 ripped, 2 mm UHMW tape on top; glued + screwed to the bearer.' });
+    parts.push({ id:'BC', name:'BC · Second-bench runner cleat', g:'rail', asm:'sled', layer:'L4', poly:CK.rect(yF0, S - bt - w, yF1, S - bt) });
+    sledBoards(S, -lay.L4[1] + lay.L3[1] - 0, 'sled');
+    inner.forEach(function(q){ q.xs = function(L){ var x = L/2 - lay.L4[0]; return [[-x, x]]; }; });
+    sledMove = function(v){ return CK.move(v*join, 0); };
+    sledNote = 'slides straight back on two UHMW-faced ledgers — no legs, nothing to lift';
+    extraHW = [{ id:'S1', qty:2, spec:'UHMW-PE tape 2 × 50 mm, 1.5 m (or 2 mm UHMW strip)', note:'On top of each runner ledger.' },
+               { id:'S2', qty:2, spec:'Ø12 ball-lock pin (same as the pivot lock)', note:'Through ledger + cleat: holds the second bench in table or bench position.' }];
+    sledKg = (nF*K.bw*bt*(P.L - 2*lay.L4[0]) + 2*t*w*DF)*5e-7;
+  } else if(how === 'free'){
+    /* D2 · free: a light, shorter stool-bench with its own legs. Lift it, drop it against
+       the main seat — two dowels locate it, two hooks hold it. */
+    var inset = 30, lz = S - bt - w;
+    sledBoards(S, inset);
+    sledCleats(S, inset);
+    inner.push({ name:'BL · Second-bench leg', g:'rail', asm:'sled', poly:CK.rect(yF0, 0, yF0 + w, lz),
+      xs:function(L){ var x = L/2 - sledEnd - inset; return [[x - t, x], [-x, -x + t]]; } });
+    inner.push({ name:'BL · Second-bench leg', g:'rail', asm:'sled', poly:CK.rect(yF1 - w, 0, yF1, lz),
+      xs:function(L){ var x = L/2 - sledEnd - inset; return [[x - t, x], [-x, -x + t]]; } });
+    sledMove = function(v){ var up = Math.sin(Math.PI*v)*60; return CK.move(v*join, up); };
+    sledNote = 'is lifted (≈ '+Math.round((nF*K.bw*bt*2000 + 4*t*w*S + 2*t*w*DF)*5e-7)+' kg at 2 m) and dropped against the main seat';
+    extraHW = [{ id:'S1', qty:4, spec:'Ø12 × 60 stainless dowel', note:'Two per end on the main seat edge; holes in the second-bench cleats locate it.' },
+               { id:'S2', qty:2, spec:'Stainless hook-and-eye or toggle latch', note:'Holds the two benches together as a sofa.' }];
+    sledKg = (nF*K.bw*bt*(P.L - 2*sledEnd - 2*inset) + 4*t*w*lz + 2*t*w*DF)*5e-7;
+  } else if(how === 'link'){
+    /* D3 · glide links: two parallel links per end hang the second bench from the frame.
+       It swings back and up over its own footprint and lands level against the main seat
+       — a four-bar, so it never tilts. */
+    var R = join/(2*Math.sin(60*Math.PI/180)), zc = S - bt - w/2;
+    var B1 = [yF1 - w/2 - 10, zc], B2 = [yF0 + w/2 + 10, zc];
+    var dA = [R*Math.sin(60*Math.PI/180), -R*Math.cos(60*Math.PI/180)];
+    var A1 = [B1[0] + dA[0], B1[1] + dA[1]], A2 = [B2[0] + dA[0], B2[1] + dA[1]];
+    var k1 = CK.arm(CK.bar(A1, B1, w*0.8), [A1, B1], w/2), k2 = CK.arm(CK.bar(A2, B2, w*0.8), [A2, B2], w/2);
+    parts.push({ id:'GR', name:'GR · Link rail', g:'rail', asm:'frame', layer:'L4',
+      poly:CK.hull(CK.circle(A1, w/2 + 6, 16).concat(CK.circle(A2, w/2 + 6, 16), [[A2[0], S - bt - w + 50], [A1[0], S - bt - w + 50]])),
+      note:'Lapped and bolted to the seat bearer.' });
+    parts.push({ id:'K1', name:'K1 · Glide link, rear', g:'rail', asm:'link1', layer:'L5', poly:k1 });
+    parts.push({ id:'K2', name:'K2 · Glide link, front', g:'rail', asm:'link2', layer:'L5', poly:k2 });
+    parts.push({ id:'BC', name:'BC · Second-bench end cleat', g:'rail', asm:'sled', layer:'L6', poly:CK.hull(CK.rect(yF0, S - bt - w, yF1, S - bt).concat(CK.circle(B1, w/2, 12), CK.circle(B2, w/2, 12))) });
+    lay.L5 = [5*t+5*g, 6*t+5*g]; lay.L6 = [6*t+6*g, 7*t+6*g];
+    sledBoards(S, 0, 'sled');
+    inner.forEach(function(q){ q.xs = function(L){ var x = L/2 - lay.L6[0]; return [[-x, x]]; }; });
+    var th0 = Math.atan2(B1[1] - A1[1], B1[0] - A1[0]);
+    sledMove = function(v){
+      var a = -2*60*v*Math.PI/180, Bn = [A1[0] + R*Math.cos(th0 + a), A1[1] + R*Math.sin(th0 + a)];
+      return CK.move(Bn[0] - B1[0], Bn[1] - B1[1]);
+    };
+    var linkRot = function(v){ return -2*60*v; };
+    sledNote = 'swings back on two parallel links per end and lands level against the main seat';
+    fasteners.push({ k:'pivot', name:'Glide pivot · M12', asm:'frame', layer:'L4', at:A1 });
+    fasteners.push({ k:'pivot', name:'Glide pivot · M12', asm:'frame', layer:'L4', at:A2 });
+    extraHW = conceptPivotHW(8, 2).slice(0, 6).map(function(h){ var c = Object.assign({}, h); c.id = 'G' + h.id.slice(1); c.note = 'Glide links: ' + h.note; return c; });
+    sledKg = (nF*K.bw*bt*(P.L - 2*lay.L6[0]) + 2*t*w*DF)*5e-7;
+    makeSwingSlide._link = { A1:A1, A2:A2, rot:linkRot };
+  } else {
+    /* D4 · tumble stool: a smaller box-bench, 450 high one way up and 300 the other.
+       Table: upright as the second seat. Bench: tip it on its side and push it under the
+       main seat — or leave it in front as a footrest. */
+    var Hs = S, Ds2 = 300 - bt, inset4 = 30;
+    var y0 = yF1 - Ds2 - bt;
+    inner.length = 0;
+    var box = [
+      CK.rect(y0, S - bt, yF1, S),                        /* top */
+      CK.rect(y0, 0, y0 + bt, S - bt),                    /* front side */
+      CK.rect(yF1 - bt, 0, yF1, S - bt),                  /* back side */
+      CK.rect(y0 + bt, 0, yF1 - bt, bt)                   /* bottom rail */
+    ];
+    var names = ['BT · Stool top board', 'BF · Stool side', 'BB · Stool side', 'BR · Stool bottom rail'];
+    box.forEach(function(q, k){ inner.push({ name:names[k], g:k ? 'rail' : 'slat', asm:'sled', poly:q,
+      xs:function(L){ var x = L/2 - sledEnd - inset4; return [[-x, x]]; } }); });
+    var ctr = [yF1, 0];                                  /* tips about its back-bottom edge */
+    var under0 = yS0 + 20;
+    sledMove = function(v){
+      var a = Math.min(1, v/0.5), m = Math.max(0, (v - 0.5)/0.5);
+      var r = CK.rot(ctr, -90*a);
+      var dy = m*(under0 - yF1);
+      return function(q){ var u = r(q); return [u[0] + dy, u[1]]; };
+    };
+    sledNote = 'tips onto its side (300 high) and slides under the main seat, or stays in front as a footrest';
+    extraHW = [{ id:'S1', qty:4, spec:'Felt / UHMW glides Ø30', note:'On the stool side that becomes the bottom.' }];
+    sledKg = ((Ds2 + bt)*bt*2 + S*bt*2)*(P.L - 2*sledEnd - 2*inset4)*5e-7;
+  }
+
+  var layNames = Object.keys(lay);
+  return {
+    layers: lay, parts: parts, boards: boards, inner: inner, fasteners: fasteners, bt: bt, bw: K.bw,
+    pose: function(s){
+      var u = Math.min(1, s/0.5), v = Math.max(0, (s - 0.5)/0.5);
+      var T = { arm: CK.rot(Pv, ANG*u), sled: sledMove(v) };
+      if(how === 'link'){ var L = makeSwingSlide._link; T.link1 = CK.rot(L.A1, L.rot(v)); T.link2 = CK.rot(L.A2, L.rot(v)); }
+      return T;
+    },
+    checks: function(P, st){
+      var s = (P.fold||0)/100, backTop = CK.rot(Pv, ANG)([-yT, TB]);
+      var depth = how === 'tumble' ? Ds : Math.round(yS1 - (yF0 + join));
+      var armTop = hz0 + w - S;
+      var lapA = 0;   /* arm plank ↔ cleat overlap, in the arm frame: proves the plank is fixed to the arm */
+      var hb = handle, cb = CK.hull(boss.concat(cleat));
+      lapA = CK.overlap(hb, cb);
+      var rows = [
+        { s:'ok', t:'<b>Table:</b> '+Wt+' mm top at '+TB+'; the second bench ('+DF+' deep, '+(how === 'tumble' ? 'stool' : 'shorter than the main bench')+') sits '+
+            'opposite the main seat, both '+ov+' mm under the table edge.', v:Wt+' × '+P.L },
+        { s: lapA > 10 ? 'ok' : 'fail', t:'<b>Arm planks.</b> Bench: armrests '+armTop+' mm above the seat, '+Math.round(hy1 - hy0)+' mm long — also the carry handles. '+
+            'Table: they swing down into slanted struts landing on the HS blocks on the low rail, so the top is held by the pivot, the front stop, '+
+            'the lock pin <i>and</i> the struts — it cannot rack or drop. Lapped onto the arm by '+Math.round(lapA)+' mm.', v:'handles' },
+        { s:'ok', t:'<b>Bench → sofa:</b> the back swings over; the second bench '+sledNote+'. '+
+            (how === 'tumble' ? 'Main seat stays '+Ds+' deep with back and armrests.' :
+             'Joined seat '+depth+' mm deep with a back '+Math.round(backTop[1])+' high and armrests both ends — a sofa you can lie on ('+depth+' × '+(P.L - 2*sledEnd)+').'),
+          v: how === 'tumble' ? Ds+' deep' : depth+' deep' },
+        { s: sledKg > 25 && how === 'free' ? 'warn' : 'ok', t:'<b>Second bench</b> ≈ '+sledKg.toFixed(0)+' kg'+
+            (how === 'free' ? (sledKg > 25 ? ' — two people, or use thinner boards for it.' : ' — one person can lift it.') :
+             how === 'runner' ? ' — slides, never lifted.' : how === 'link' ? ' — swings on links, never lifted.' : ' — tipped, never lifted clear.'), v:sledKg.toFixed(0)+' kg' },
+        lock ? { s:'ok', t:'<b>Top lock pin</b>: table hole at '+lock.R1+' mm, bench hole at '+lock.R2+' mm from the pivot, ≥ 16 mm of wood round each.', v:'r '+lock.R }
+             : { s:'fail', t:'<b>No lock-pin position found.</b>', v:'—' },
+        sfRow('Sit on the main-seat front edge', tipSF(st, 1000, s >= 1 && how !== 'tumble' ? yF0 + join : yS0), '1 kN on the front edge of the seat in use.'),
+        s >= 0.5 ? sfRow('Lean back hard', tipSF(st, 800, (yS0 + yS1)/2, 300, backTop[1]), '300 N pushing back at the top of the back, 800 N on the seat.')
+                 : sfRow('Lean on the table edge', tipSF(st, 600, -yT), '600 N on the front edge of the top (the second bench is a separate body, not counted).')
+      ];
+      return rows;
+    },
+    spans: function(P){
+      return [
+        { label:'Main seat boards', span: P.L - 2*lay.L3[1], b:K.bw, h:bt, tributary:p, load:2 },
+        { label:'Table / back boards', span: P.L - 2*lay.L1[1], b:K.bw, h:bt, tributary:p, load:2 }
+      ];
+    },
+    headline: function(P){ return P.L+' long · swing-top + '+({runner:'sliding', free:'loose', link:'gliding', tumble:'tumble-stool'})[how]+' second bench · arm planks'; },
+    headline2: function(P, s){
+      var st = s <= 0 ? 'TABLE' : s < 0.5 ? 'TOP SWINGING '+Math.round(s*200)+'%' : s < 1 ? 'SECOND BENCH MOVING '+Math.round((s - 0.5)*200)+'%' : 'SOFA';
+      return st+' · 1 pivot + 1 pin per end · arm planks = handles / table struts';
+    },
+    hardware: function(){
+      var screws = 2*(nS*2 + nT*2 + nF*2) + 8;
+      return conceptPivotHW(2, 2).concat(extraHW,
+        [{ id:'H1', qty:4, spec:'M10 × 130 hex bolt + washers + nyloc, A4', note:'Two per arm plank, through plank + table cleat.' }],
+        conceptCommonHW(screws, 12, 2));
+    },
+    fabrication: [
+      { part:'Arm planks', detail:'One 45 × 95 × '+Math.round(hy1 - hy0)+' per end, lapped on the inside of the table cleat with 2 × M10. Round the top edges R10 — they are the armrests and the carry handles. Cut the lower end parallel to the HS block face so it lands flat.' },
+      { part:'Second bench', detail: how === 'runner' ? 'Two end cleats + '+nF+' boards; cleats ride on UHMW tape on the ledgers. Wax the tape once a season.' :
+          how === 'free' ? 'A light stool-bench: 4 legs, 2 cleats, '+nF+' boards. Dowels in the main seat edge locate it, two latches hold it.' :
+          how === 'link' ? 'Four identical glide links drilled as a stack, M12 pivots with sleeves. The second bench rises ≈ '+Math.round(R*(1 - Math.cos(60*Math.PI/180)))+' mm mid-swing.' :
+          'A closed box: top board, two sides, bottom rail; works either way up. Felt glides on the side that becomes the bottom.' },
+      { part:'Pivots', detail:'Same as the swing-top: M12 on Ø18 sleeves, Ø18/22 bushings, Ø36 counterbores, 3 mm UHMW washer.' },
+      { part:'Edges', detail:'Round every exposed arris R3; armrests R10; table corners R20.' }
+    ]
+  };
+}
+
+function swingSlideDesign(id, name, how, blurb, tag, note){
+  DESIGNS[id] = {
+    id:id, name:name, blurb:blurb, info:{ designer:'concept', version:'0.1', license:'MIT' },
+    areas: conceptAreas(),
+    schema: [
+      {k:'L',    label:'Length', group:'Dimensions', type:'range', min:1600, max:2600, step:10, def:2000, unit:'mm'},
+      {k:'fold', label:'Convert: table → back → sofa', group:'Mechanism', type:'range', min:0, max:100, step:1, def:0, unit:'%'}
+    ],
+    variants:{ V:{ name:name.split(' · ')[0]+' · 2 m', tag:tag, note:note, set:{ L:2000, fold:0, mid:'off' } } },
+    build:function(P, ctx){ P.mid = 'off'; return conceptBuild(makeSwingSlide(stockTW(ctx), P, how), P, ctx); }
+  };
+}
+swingSlideDesign('slide1', 'S1 · Runner slide', 'runner',
+  'Swing-top with a legless second bench riding on UHMW-faced wooden ledgers: it slides straight back and joins the main seat into a deep sofa.',
+  'Legless second bench on wooden runners.',
+  '<b>Runner slide.</b> Drag <i>Convert</i>: 0–50 % the top swings back and the arm planks rise into armrests; 50–100 % the second bench slides back on its ledgers.');
+swingSlideDesign('slide2', 'S2 · Free dock', 'free',
+  'Swing-top with a loose, lighter second bench on its own legs. Lift it, drop it against the main seat on two dowels — no rails at all.',
+  'Loose 3-board stool-bench, dowel-docked.',
+  '<b>Free dock.</b> The second bench is a separate light piece; drag <i>Convert</i> to see it lifted over and docked.');
+swingSlideDesign('slide3', 'S3 · Glide links', 'link',
+  'Swing-top with the second bench hung on parallel links: it swings back level, like a glider swing, and lands against the main seat.',
+  'Second bench on parallel links — never lifted, never tilts.',
+  '<b>Glide links.</b> Two links per end keep the second bench level while it swings 600 mm back.');
+swingSlideDesign('slide4', 'S4 · Tumble stool', 'tumble',
+  'Swing-top with a box stool-bench: upright it is the second seat at 450, tipped on its side it is 300 high and slides under the main seat or serves as a footrest.',
+  'Box stool: seat one way up, footrest / storage the other.',
+  '<b>Tumble stool.</b> Drag <i>Convert</i>: the stool tips onto its side and slides under the main seat.');
 
 /* ---- folding picnic bench, Rev 2 --------------------------------------- */
 function rot2(p, c, deg){
@@ -4824,7 +5097,7 @@ document.getElementById('btnDl').onclick=function(){
 
 /* ---- boot ---- */
 renderExportList();
-Object.keys(DESIGNS).forEach(function(k){ if(!/^concept/.test(k)) delete DESIGNS[k]; });
+Object.keys(DESIGNS).forEach(function(k){ if(k.indexOf('concept') !== 0) delete DESIGNS[k]; });
 if(initGL()){
   selectDesign('concept1');
 } else {
