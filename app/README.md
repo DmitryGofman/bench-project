@@ -29,6 +29,15 @@ Four clean-sheet bench ↔ table designs built on a shared engine (`concepts-pro
 | C3 Level-lift | top on parallel links, stays level | table / daybed with fixed back | 1.5 m × 1.8 m |
 | C4 Lift-off leaves | none: two loose leaves | table / backed lounger / flat daybed | 1.6 m × 1.8 m |
 
+## Buy / BOM, files, drawing BOM (`extras-project.js`, patched in by `make_extras.py`)
+- **Buy / BOM tab:**
+  - A shopping list by category (timber, bolts/nuts/washers, pivot bearings, lock pins, wood screws, glue & finish, tools), with exact names, catalog / standard numbers, quantities from the live model, supplier links, phones and listed prices. Also downloads as CSV.
+  - An assembly plan by sub-assembly in build order, listing the parts and the joint fasteners for each step. Also downloads as Markdown.
+- **Drawing tab:** a BOM sheet (timber parts + hardware with catalog numbers and supplier links) under the drawing.
+- **Export tab:** one-click download / open links for every generated file, *Download all as .zip*, and links to the files already in the project folder.
+
+Rebuild order after editing: `python3 make_extras.py && python3 make_concepts.py`.
+
 ## Swing-top variants (`swing.html`)
 The swing-top (C2) with a second bench that joins the main seat into a sofa, built in four ways. All four share arm planks fixed to the swing arms: armrests and carry handles in bench mode, slanted struts landing on stop blocks in table mode. They also share a rear kick foot so leaning back cannot tip the bench. *Convert* 0–50 % swings the top; 50–100 % moves the second bench.
 

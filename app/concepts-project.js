@@ -888,6 +888,28 @@ function makeSwingSlide(K, P, how){
     { id:'HP', name:'HP · Arm plank (handle / table strut)', g:'rail', asm:'arm', layer:'L2', poly:handle,
       note:'Bench: armrest and carry handle. Table: a slanted strut that lands on HS. Lapped and bolted (2 × M10) to the table cleat.' }
   ];
+  if(how === 'runner'){
+    /* TELESCOPING: nothing of the main frame stays in front of the main seat. The front
+       legs, the table stop post and the front half of the rails all go; the table is held
+       by the pivot, the lock pin and the arm-plank struts landing on HS. */
+    var drop = ['LF','SF','SF2','FP','ST','PP'];
+    parts = parts.filter(function(q){ return drop.indexOf(q.id) < 0; });
+    /* post and head plate as two pieces, so the main front leg fits under the plate */
+    parts.push({ id:'PP', name:'PP · Pivot post', g:'rail', asm:'frame', layer:'L0', poly:CK.rect(Pv[0] - w/2, 0, Pv[0] + w/2, Pv[1] - 140 + 20) });
+    parts.push({ id:'PH', name:'PH · Pivot head plate', g:'rail', asm:'frame', layer:'L0', poly:CK.circle(Pv, 140, 24).map(function(q){ return [q[0], Math.max(q[1], Pv[1] - 140 + 20)]; }), W:280,
+      note:'Ø280 disc cut from a 45 × 300 offcut, glued + 2 × M10 onto the post top.' });
+    var lrFront = Math.min(yS0, ya) - 10;
+    parts.forEach(function(q){
+      if(q.id === 'LR') q.poly = CK.rect(lrFront, 100 - w, yS1 + KICK, 100);
+      if(q.id === 'SB') q.poly = CK.rect(yS0, S - bt - w, yS1, S - bt);
+    });
+    var hz = S - bt - w;                                       /* bearer underside */
+    parts.push({ id:'MF', name:'MF · Main front leg', g:'rail', asm:'frame', layer:'L0', poly:CK.rect(yS0, 0, Math.min(yS0 + w, Pv[0] - w/2), hz),
+      note:'Bolted through SM, HS and HG to the seat bearer line (M10).' });
+    parts.push({ id:'SM', name:'SM · Spacer, main front leg', g:'rail', asm:'frame', layer:'L1', poly:CK.rect(yS0, hz - w, yS0 + w, hz) });
+    parts.push({ id:'HG', name:'HG · Ledger hanger, front', g:'rail', asm:'frame', layer:'L3', poly:CK.rect(yS0, hz - w, yS0 + w, hz) });
+    parts.push({ id:'HG2',name:'HG · Ledger hanger, rear', g:'rail', asm:'frame', layer:'L3', poly:CK.rect(yS1 - w, hz - w, yS1, hz) });
+  }
   var boards = [];
   for(var i=0;i<nS;i++) boards.push({ id:'SR', name:'SS · Main seat board', g:'slat', asm:'frame', inset:lay.L3[0], poly:CK.rect(yS0 + i*p, S - bt, yS0 + i*p + K.bw, S) });
   for(i=0;i<nT;i++) boards.push({ id:'TB', name:'TB · Table / back board', g:'slat', asm:'arm', inset:lay.L1[0], poly:CK.rect(-yT + i*p, under, -yT + i*p + K.bw, TB) });
@@ -914,19 +936,26 @@ function makeSwingSlide(K, P, how){
       xs:function(L){ var x = L/2 - sledEnd - (inset||0); return [[x - t, x], [-x, -x + t]]; } });
   }
   if(how === 'runner'){
-    /* D1 · runners: the second bench has no legs. Its end cleats sit on hardwood ledgers
-       screwed to the inside of the seat bearers and slide straight back. */
-    var ledger = CK.rect(-yS1, S - bt - w - 30, yS1, S - bt - w);
-    parts.push({ id:'RL', name:'RL · Runner ledger (UHMW-faced)', g:'rail', asm:'frame', layer:'L4', poly:ledger,
-      note:'45 × 30 hardwood or 45 × 95 ripped, 2 mm UHMW tape on top; glued + screwed to the bearer.' });
-    parts.push({ id:'BC', name:'BC · Second-bench runner cleat', g:'rail', asm:'sled', layer:'L4', poly:CK.rect(yF0, S - bt - w, yF1, S - bt) });
-    sledBoards(S, -lay.L4[1] + lay.L3[1] - 0, 'sled');
+    /* D1 · telescoping runners: the second bench carries its own legs and its own long
+       runners. The runners ride on UHMW-faced ledgers that live only under the main seat,
+       so in table mode they reach forward under the gap, and in sofa mode the whole second
+       bench — legs, runners and all — has slid back under the main seat. Nothing stays
+       in front. */
+    var hz1 = S - bt - w, runEnd = yS0 + 100;
+    lay.L5 = [5*t+5*g, 6*t+5*g];
+    parts.push({ id:'RL', name:'RL · Runner ledger (UHMW-faced)', g:'rail', asm:'frame', layer:'L4', poly:CK.rect(yS0, hz1 - w, yS1, hz1),
+      note:'45 × 95, 2 mm UHMW tape on top; hung on the HG blocks under the seat bearer.' });
+    parts.push({ id:'RN', name:'RN · Second-bench runner', g:'rail', asm:'sled', layer:'L4', poly:CK.rect(yF0, hz1, runEnd, S - bt),
+      note:'Rides on RL. '+Math.round(runEnd - yS0)+' mm of it stays on the ledger in table mode.' });
+    parts.push({ id:'SL', name:'SL · Second-bench leg', g:'rail', asm:'sled', layer:'L5', poly:CK.rect(yF0, 0, yF0 + w, hz1 + w),
+      note:'Lapped onto the runner; slides back under the main seat with it.' });
+    sledBoards(S, 0, 'sled');
     inner.forEach(function(q){ q.xs = function(L){ var x = L/2 - lay.L4[0]; return [[-x, x]]; }; });
     sledMove = function(v){ return CK.move(v*join, 0); };
-    sledNote = 'slides straight back on two UHMW-faced ledgers — no legs, nothing to lift';
-    extraHW = [{ id:'S1', qty:2, spec:'UHMW-PE tape 2 × 50 mm, 1.5 m (or 2 mm UHMW strip)', note:'On top of each runner ledger.' },
-               { id:'S2', qty:2, spec:'Ø12 ball-lock pin (same as the pivot lock)', note:'Through ledger + cleat: holds the second bench in table or bench position.' }];
-    sledKg = (nF*K.bw*bt*(P.L - 2*lay.L4[0]) + 2*t*w*DF)*5e-7;
+    sledNote = 'telescopes straight back — its legs and runners slide under the main seat with it, nothing left in front';
+    extraHW = [{ id:'S1', qty:2, spec:'UHMW-PE tape 2 × 50 mm, 0.5 m (or 2 mm UHMW strip)', note:'On top of each runner ledger.' },
+               { id:'S2', qty:2, spec:'Ball-lock quick-release pin Ø12 (same as the pivot lock)', note:'Through ledger + runner: locks the second bench out (table) or in (sofa) — in table mode it also makes the two benches one stable body.' }];
+    sledKg = (nF*K.bw*bt*(P.L - 2*lay.L4[0]) + 2*t*w*(runEnd - yF0) + 2*t*w*(hz1 + w))*5e-7;
   } else if(how === 'free'){
     /* D2 · free: a light, shorter stool-bench with its own legs. Lift it, drop it against
        the main seat — two dowels locate it, two hooks hold it. */
@@ -1021,8 +1050,8 @@ function makeSwingSlide(K, P, how){
         { s:'ok', t:'<b>Table:</b> '+Wt+' mm top at '+TB+'; the second bench ('+DF+' deep, '+(how === 'tumble' ? 'stool' : 'shorter than the main bench')+') sits '+
             'opposite the main seat, both '+ov+' mm under the table edge.', v:Wt+' × '+P.L },
         { s: lapA > 10 ? 'ok' : 'fail', t:'<b>Arm planks.</b> Bench: armrests '+armTop+' mm above the seat, '+Math.round(hy1 - hy0)+' mm long — also the carry handles. '+
-            'Table: they swing down into slanted struts landing on the HS blocks on the low rail, so the top is held by the pivot, the front stop, '+
-            'the lock pin <i>and</i> the struts — it cannot rack or drop. Lapped onto the arm by '+Math.round(lapA)+' mm.', v:'handles' },
+            'Table: they swing down into slanted struts landing on the HS blocks on the low rail, so the top is held by the pivot, '+
+            (how === 'runner' ? '' : 'the front stop, ')+'the lock pin <i>and</i> the struts — it cannot rack or drop. Lapped onto the arm by '+Math.round(lapA)+' mm.', v:'handles' },
         { s:'ok', t:'<b>Bench → sofa:</b> the back swings over; the second bench '+sledNote+'. '+
             (how === 'tumble' ? 'Main seat stays '+Ds+' deep with back and armrests.' :
              'Joined seat '+depth+' mm deep with a back '+Math.round(backTop[1])+' high and armrests both ends — a sofa you can lie on ('+depth+' × '+(P.L - 2*sledEnd)+').'),
@@ -1034,7 +1063,9 @@ function makeSwingSlide(K, P, how){
              : { s:'fail', t:'<b>No lock-pin position found.</b>', v:'—' },
         sfRow('Sit on the main-seat front edge', tipSF(st, 1000, s >= 1 && how !== 'tumble' ? yF0 + join : yS0), '1 kN on the front edge of the seat in use.'),
         s >= 0.5 ? sfRow('Lean back hard', tipSF(st, 800, (yS0 + yS1)/2, 300, backTop[1]), '300 N pushing back at the top of the back, 800 N on the seat.')
-                 : sfRow('Lean on the table edge', tipSF(st, 600, -yT), '600 N on the front edge of the top (the second bench is a separate body, not counted).')
+                 : sfRow('Lean on the table edge', tipSF(st, 600, -yT), how === 'runner'
+                     ? '600 N on the front edge of the top; the second bench is pinned to the ledgers, so its legs count.'
+                     : '600 N on the front edge of the top (the second bench is a separate body, not counted).')
       ];
       return rows;
     },
