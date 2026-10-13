@@ -19,6 +19,9 @@ Every folder's `project.json` loads through **Export → Load a saved design** w
 - **Hardware tab**: hardware schedule, moving interfaces (bearings, stops, locks), fixed joints and fabrication notes. All of these are supplied by the design. There is also a `hardware.csv` export.
 - **Design-supplied checks** in the Checks tab: mechanism sweep, hands-off path, 3D fastener check and endpoint locking.
 
+## Mobile
+`index.html` is responsive: at ≤760px the 3D view pins to the top and the controls and tables scroll beneath it. Touch: one finger orbits (or pans in Pan mode), two fingers pinch to zoom, tap selects a part. Source of the changes: `mobile.css`, `mobile.js` (patched in by `make_app.py`).
+
 ## Rebuild
 ```bash
 python3 ../folding-P1/rev2/build.py   # regenerates geometry, drawings and app-folding-data.js

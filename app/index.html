@@ -1,6 +1,6 @@
 <!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <title>Furniture Kit — bench project</title>
 <!--
   furniture-kit / prototype 04
@@ -204,6 +204,44 @@
     #rail{grid-row:auto;border-right:none;border-bottom:1px solid var(--rule);max-height:34vh}
     #panel{grid-column:1;height:32vh}
     .exp{grid-template-columns:1fr}
+  }
+
+  /* ---- phone layout: 3D view pinned on top, controls and tables scroll below ---- */
+  @media (max-width:760px){
+    html,body{height:auto;-webkit-text-size-adjust:100%}
+    body{display:flex;flex-direction:column;height:auto;overflow:visible}
+    #view{order:-1}
+    #view{position:sticky;top:0;z-index:5;height:52vh;height:52svh;min-height:260px;
+          border-bottom:1px solid var(--rule)}
+    #rail{max-height:none;overflow:visible;border-bottom:1px solid var(--rule);padding:14px 12px 24px}
+    #panel{height:auto;min-height:60vh;border-top:none}
+    #pbody{overflow:visible}
+    #ptabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 4px;flex-wrap:nowrap;
+           position:sticky;top:52vh;top:52svh;z-index:4;background:var(--panel)}
+    #ptabs button{flex:none;padding:12px 11px}
+    #ptabs .stats{display:none}
+    #pbody{overflow-x:auto}
+    th,td{padding:7px 10px}
+    .modebar,.nest,.checks,.exp{padding-left:12px;padding-right:12px}
+    pre#expText{max-height:40vh}
+    #hud{left:10px;top:8px;right:150px}
+    #hud .t{font-size:16px}
+    #hud .d{font-size:10.5px}
+    #vtabs{right:8px;top:8px}
+    #vtabs button{padding:8px 12px}
+    #tip{display:none}
+    #sel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:70%;overflow:auto}
+    #sel textarea{font-size:16px}
+    /* >=16px inputs stop iOS Safari zooming the page on focus; bigger tap targets */
+    input[type=number],select,textarea{font-size:16px;padding:8px}
+    input[type=range]{height:28px;margin-bottom:10px}
+    .vbtn{padding:12px 11px}
+    .seg button,.views button,.ghost{padding:10px 8px;font-size:12px}
+    .pad button{padding:12px 0}
+    .chk{margin-bottom:12px;font-size:12.5px}
+    .chk input{width:20px;height:20px}
+    .area .fields{grid-template-columns:1fr 64px 64px}
+    #pbody .modebar .seg{flex-wrap:wrap}
   }
 </style>
 
@@ -3642,20 +3680,31 @@ function renderDrawing(){
 /* ---- navigation ---- */
 var MODE='orbit', drag=null;
 host.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+var ptrs={}, pinch=null;
+function ptrDist(){ var k=Object.keys(ptrs); if(k.length<2) return 0;
+  var a=ptrs[k[0]], b=ptrs[k[1]]; return Math.hypot(a.x-b.x, a.y-b.y); }
 host.addEventListener('pointerdown', function(e){
   if(VIEWTAB!=='3d') return;
+  ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
+  host.setPointerCapture(e.pointerId);
+  if(Object.keys(ptrs).length===2){ pinch={d:ptrDist(), dist:dist}; drag=null; return; }
   drag={x:e.clientX,y:e.clientY,pan:(MODE==='pan'||e.button===2||e.button===1||e.shiftKey),
         ox:e.clientX, oy:e.clientY, moved:0};
-  host.setPointerCapture(e.pointerId);
 });
 host.addEventListener('pointerup', function(e){
-  /* a click, not the end of an orbit */
-  if(VIEWTAB==='3d' && drag && drag.moved < 5 && e.button===0){
+  /* a click/tap, not the end of an orbit */
+  if(VIEWTAB==='3d' && drag && drag.moved < 5 && e.button===0 && !pinch){
     var i = pickAt(e.clientX, e.clientY);
     selectPart(i===null ? null : MODEL.parts[i]);
   }
 });
 host.addEventListener('pointermove', function(e){
+  if(ptrs[e.pointerId]){ ptrs[e.pointerId].x=e.clientX; ptrs[e.pointerId].y=e.clientY; }
+  if(pinch){
+    var d=ptrDist();
+    if(d>0 && pinch.d>0) setDist(pinch.dist*pinch.d/d);
+    return;
+  }
   if(!drag) return;
   var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
   if(drag.pan){
@@ -3672,7 +3721,13 @@ host.addEventListener('pointermove', function(e){
     Math.abs(e.clientX-drag.ox) + Math.abs(e.clientY-drag.oy));
   drag.x=e.clientX; drag.y=e.clientY; draw();
 });
-window.addEventListener('pointerup', function(){ drag=null; });
+function endPtr(e){
+  delete ptrs[e.pointerId];
+  if(Object.keys(ptrs).length<2) pinch=null;
+  if(!Object.keys(ptrs).length) drag=null;
+}
+window.addEventListener('pointerup', endPtr);
+window.addEventListener('pointercancel', endPtr);
 host.addEventListener('wheel', function(e){
   if(VIEWTAB!=='3d') return;
   e.preventDefault();

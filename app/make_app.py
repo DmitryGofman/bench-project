@@ -361,5 +361,16 @@ patch("""  Object.keys(DESIGNS).forEach(function(id){
   ids.forEach(function(id){
     var d = DESIGNS[id], b = document.createElement('button');""")
 
+# ---- mobile: phone layout (mobile.css), safe-area viewport, touch orbit + pinch zoom (mobile.js)
+mobile_css = open(os.path.join(HERE, 'mobile.css'), encoding='utf-8').read()
+mobile_js = open(os.path.join(HERE, 'mobile.js'), encoding='utf-8').read().rstrip('\n')
+patch('</style>\n\n<div id="rail">', mobile_css.rstrip('\n') + '\n</style>\n\n<div id="rail">')
+patch('<meta name="viewport" content="width=device-width, initial-scale=1">\n<title>',
+      '<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">\n<title>')
+_a = src.index("host.addEventListener('pointerdown'")
+_end = "window.addEventListener('pointerup', function(){ drag=null; });"
+_b = src.index(_end) + len(_end)
+src = src[:_a] + mobile_js + src[_b:]
+
 open(os.path.join(HERE, 'index.html'), 'w', encoding='utf-8').write(src)
 print('app/index.html written, %d bytes' % len(src))

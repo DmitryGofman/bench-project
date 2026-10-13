@@ -1,0 +1,38 @@
+
+  /* ---- phone layout: 3D view pinned on top, controls and tables scroll below ---- */
+  @media (max-width:760px){
+    html,body{height:auto;-webkit-text-size-adjust:100%}
+    body{display:flex;flex-direction:column;height:auto;overflow:visible}
+    #view{order:-1}
+    #view{position:sticky;top:0;z-index:5;height:52vh;height:52svh;min-height:260px;
+          border-bottom:1px solid var(--rule)}
+    #rail{max-height:none;overflow:visible;border-bottom:1px solid var(--rule);padding:14px 12px 24px}
+    #panel{height:auto;min-height:60vh;border-top:none}
+    #pbody{overflow:visible}
+    #ptabs{overflow-x:auto;-webkit-overflow-scrolling:touch;padding:0 4px;flex-wrap:nowrap;
+           position:sticky;top:52vh;top:52svh;z-index:4;background:var(--panel)}
+    #ptabs button{flex:none;padding:12px 11px}
+    #ptabs .stats{display:none}
+    #pbody{overflow-x:auto}
+    th,td{padding:7px 10px}
+    .modebar,.nest,.checks,.exp{padding-left:12px;padding-right:12px}
+    pre#expText{max-height:40vh}
+    #hud{left:10px;top:8px;right:150px}
+    #hud .t{font-size:16px}
+    #hud .d{font-size:10.5px}
+    #vtabs{right:8px;top:8px}
+    #vtabs button{padding:8px 12px}
+    #tip{display:none}
+    #sel{left:8px;right:8px;top:auto;bottom:8px;width:auto;max-height:70%;overflow:auto}
+    #sel textarea{font-size:16px}
+    /* >=16px inputs stop iOS Safari zooming the page on focus; bigger tap targets */
+    input[type=number],select,textarea{font-size:16px;padding:8px}
+    input[type=range]{height:28px;margin-bottom:10px}
+    .vbtn{padding:12px 11px}
+    .seg button,.views button,.ghost{padding:10px 8px;font-size:12px}
+    .pad button{padding:12px 0}
+    .chk{margin-bottom:12px;font-size:12.5px}
+    .chk input{width:20px;height:20px}
+    .area .fields{grid-template-columns:1fr 64px 64px}
+    #pbody .modebar .seg{flex-wrap:wrap}
+  }
