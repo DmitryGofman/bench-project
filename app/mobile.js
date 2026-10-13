@@ -2,7 +2,8 @@ var ptrs={}, pinch=null;
 function ptrDist(){ var k=Object.keys(ptrs); if(k.length<2) return 0;
   var a=ptrs[k[0]], b=ptrs[k[1]]; return Math.hypot(a.x-b.x, a.y-b.y); }
 host.addEventListener('pointerdown', function(e){
-  if(VIEWTAB!=='3d') return;
+  /* only presses on the canvas orbit; buttons and panels over it keep their clicks */
+  if(VIEWTAB!=='3d' || e.target !== cv) return;
   ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
   host.setPointerCapture(e.pointerId);
   if(Object.keys(ptrs).length===2){ pinch={d:ptrDist(), dist:dist}; drag=null; return; }

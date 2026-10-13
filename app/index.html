@@ -1238,20 +1238,119 @@ function roundPoly(poly, rAcute, rObtuse){
   }
   return out;
 }
+/* clip a convex polygon to the half-plane a·q ≥ c (Sutherland–Hodgman, one edge) */
+function clipHalf(poly, a, c){
+  var out = [];
+  for(var i=0;i<poly.length;i++){
+    var P = poly[i], Q = poly[(i+1)%poly.length];
+    var dp = a[0]*P[0] + a[1]*P[1] - c, dq = a[0]*Q[0] + a[1]*Q[1] - c;
+    if(dp >= 0) out.push(P);
+    if((dp >= 0) !== (dq >= 0)){ var t = dp/(dp - dq); out.push([P[0] + t*(Q[0]-P[0]), P[1] + t*(Q[1]-P[1])]); }
+  }
+  return out;
+}
+/* separating-axis overlap depth of two convex polygons (0 = apart or touching) */
+function satDepth(A, B){
+  var best = Infinity;
+  [A, B].forEach(function(P){
+    for(var i=0;i<P.length;i++){
+      var a = P[i], b = P[(i+1)%P.length], ny = -(b[1]-a[1]), nz = b[0]-a[0], l = Math.hypot(ny, nz);
+      if(l < 1e-9) continue; ny /= l; nz /= l;
+      var a0=Infinity,a1=-Infinity,b0=Infinity,b1=-Infinity;
+      A.forEach(function(q){ var d=q[0]*ny+q[1]*nz; if(d<a0)a0=d; if(d>a1)a1=d; });
+      B.forEach(function(q){ var d=q[0]*ny+q[1]*nz; if(d<b0)b0=d; if(d>b1)b1=d; });
+      best = Math.min(best, Math.min(a1, b1) - Math.max(a0, b0));
+    }
+  });
+  return Math.max(0, best);
+}
+/* TRIMS: material that only stuck out. F3's toe stopped 29 mm past the front of F2 —
+   cut flush with F2. T4 hung 38 mm below T1 — cut 12 mm off, the bearing edge on F1
+   keeps 86 of its 100 mm. Only material is removed, so no new contact can appear. */
+var TRIM = { F3:[[1,0], -765.1], T4:[[0,1], 602] };
+
+/* the folding side profile with the user's seat extension: n extra front-seat boards
+   (95 mm pitch) lengthen F2 forward; returns [{id,name,g,asm,side,x0,x1,poly,...}] */
+function foldingProfile(F, seatX){
+  var ext = 95*seatX, out = [];
+  F.parts.forEach(function(p){
+    var poly = p.poly;
+    if(TRIM[p.id]) poly = clipHalf(poly, TRIM[p.id][0], TRIM[p.id][1]);
+    if(p.id === 'F2') poly = poly.map(function(q){ return q[0] < -700 ? [q[0] - ext, q[1]] : q; });
+    var sf = SOFTEN[p.id]; if(sf) poly = roundPoly(poly, sf[0], sf[1]);
+    out.push(Object.assign({}, p, { poly:poly }));
+  });
+  var s2 = F.parts.filter(function(p){ return p.id === 'S2'; })
+                  .sort(function(a,b){ return a.poly[0][0] - b.poly[0][0]; })[0];
+  for(var k=1;k<=seatX;k++)
+    out.push(Object.assign({}, s2, { name:'S2 · Front seat board (extension)', ext:true,
+      poly: s2.poly.map(function(q){ return [q[0] - 95*k, q[1]]; }) }));
+  return out;
+}
+/* front-seat angle on the hands-off path (simulated for the Rev 2 profile) */
+function foldingPhi(F, th, motion){
+  if(motion === 'guided') return 0;
+  var H = F.handsoff, i = 0;
+  while(i < H.length-2 && H[i+1][0] > th) i++;
+  var a = H[i], b = H[i+1], f = (a[0]===b[0]) ? 0 : (th - a[0])/(b[0]-a[0]);
+  return a[1] + f*(b[1]-a[1]);
+}
+function foldingTf(F, th, phi){
+  var A = rot2(F.A0, F.B, th), dA = [A[0]-F.A0[0], A[1]-F.A0[1]];
+  return function(asm){
+    if(asm === 'top')   return function(q){ return rot2(q, F.B, th); };
+    if(asm === 'front') return function(q){ var r = rot2(q, F.A0, phi); return [r[0]+dA[0], r[1]+dA[1]]; };
+    return function(q){ return q; };
+  };
+}
+/* LIVE sweep of this exact geometry: 0–100° in 1° steps, both motions, every pair of
+   parts from different assemblies whose X ranges overlap, plus the floor. */
+var FOLD_SWEEP = {};
+function foldingSweep(F, seatX){
+  if(FOLD_SWEEP[seatX]) return FOLD_SWEEP[seatX];
+  var prof = foldingProfile(F, seatX), hits = {}, n = 0;
+  function xr(p){ return p.side === 'C' ? [p.x0, p.x1] : [p.x0, p.x1]; }
+  ['guided','hands'].forEach(function(motion){
+    for(var f=0; f<=100; f++){
+      var th = -f, tf = foldingTf(F, th, foldingPhi(F, th, motion));
+      var cur = prof.map(function(p){ return p.poly.map(tf(p.asm)); });
+      for(var i=0;i<prof.length;i++){
+        var A = prof[i];
+        if(A.asm !== 'rear'){
+          var zmin = Math.min.apply(null, cur[i].map(function(q){ return q[1]; }));
+          if(zmin < -0.5) note(A.name+' ↔ floor', -zmin, f, motion);
+        }
+        for(var j=i+1;j<prof.length;j++){
+          var B = prof[j];
+          if(A.asm === B.asm) continue;
+          var ra = xr(A), rb = xr(B);
+          if(!(ra[0] < rb[1] - 0.01 && rb[0] < ra[1] - 0.01)) continue;
+          var d = satDepth(cur[i], cur[j]);
+          if(d > 0.5) note(A.name+' ↔ '+B.name, d, f, motion);
+        }
+      }
+      n++;
+    }
+  });
+  function note(k, d, f, m){ if(!hits[k] || hits[k].d < d) hits[k] = { k:k, d:d, f:f, m:m }; }
+  var list = Object.keys(hits).map(function(k){ return hits[k]; });
+  return (FOLD_SWEEP[seatX] = { hits:list, steps:n });
+}
+
 /* parts whose pointed corners are softened (EN 581-1 asks for rounded or chamfered edges) */
 var SOFTEN = { F3:[10,6], T4:[8,6], T5:[8,6] };
 
 /* Full fastener schedule for the folding bench (two end frames).
    Per frame: pivots A + B, one lock pin, three M8 laps, 28 frame screws and
    21 board screws (from the Rev 2 joint schedule, one side). */
-function foldingHardware(frames){
-  var piv = 2*frames, framescrews = 28*frames, boardscrews = 21*frames;
+function foldingHardware(frames, seatX){
+  var piv = 2*frames, framescrews = 28*frames, boardscrews = 21*frames + 4*(seatX||0);
   var spare = function(n){ return Math.ceil(n*1.1); };
   return [
     { id:'H01', qty:piv, spec:'M12×75 hex bolt, ISO 4017 / DIN 933, A4-70 stainless (or HDG 8.8). ×80 is fine, cut flush with the nut.', note:'Pivots A and B, one per pivot per side.' },
     { id:'H02', qty:piv, spec:'M12 nyloc nut, ISO 10511 / DIN 985, A4', note:'Torque fully: the bolt clamps the sleeve, not the timber.' },
     { id:'H03', qty:2*piv, spec:'M12 flat washer ISO 7089 (Ø24 × 2.5), A4', note:'Head and nut side; bears on the sleeve ends.' },
-    { id:'H04', qty:piv, spec:'Pivot sleeve: stainless tube OD18 × 2.5 wall (ID13), cut 54.5 long, ends square & deburred', note:'The bearing journal. '+piv+' × 54.5 = '+Math.round(piv*54.5)+' mm of tube + saw cuts.' },
+    { id:'H04', qty:piv, spec:'Pivot sleeve: 316L stainless tube OD18 × 2.0 wall (ID14), cut 54.5 long, ends square & deburred', note:'The bearing journal. '+piv+' × 54.5 = '+Math.round(piv*54.5)+' mm of tube + saw cuts.' },
     { id:'H05', qty:piv, spec:'Plain bushing ID18 / OD22 × 25, oil-impregnated sintered bronze (DIN 1850 / Oilite) or POM', note:'Pressed into F1 and T2 (head-side members), flush with the moving face.' },
     { id:'H06', qty:piv, spec:'Plain bushing ID18 / OD22 × 20, sintered bronze or POM', note:'Pressed into T1 and R3 (nut-side members).' },
     { id:'H07', qty:piv, spec:'Thrust washer UHMW-PE or PTFE, ID18.5 / OD48 / 3.0', note:'Between moving faces at each pivot; sets the 3 mm face gap.' },
@@ -1275,6 +1374,7 @@ DESIGNS.folding = {
   ],
   schema:[
     {k:'L',     label:'Length', group:'Dimensions', type:'range', min:1200, max:3000, step:10, def:2000, unit:'mm'},
+    {k:'seatX', label:'Seat depth: extra front boards', group:'Dimensions', type:'range', min:0, max:3, step:1, def:2, unit:'× 95 mm'},
     {k:'fold',  label:'Fold, table → bench', group:'Mechanism', type:'range', min:0, max:100, step:1, def:0, unit:'°'},
     {k:'motion',label:'Front seat while folding', group:'Mechanism', type:'select', def:'hands',
        options:[{v:'hands',label:'Hands-off'},{v:'guided',label:'Held level'}]},
@@ -1285,17 +1385,17 @@ DESIGNS.folding = {
          note:'<b>P1 Rev 3, 2 m.</b> Same side profile and mechanism as Rev 2, stretched to 2000 mm between the two end frames. '+
               'Pivots upgraded to M12 bolts on Ø18 stainless sleeves in Ø18/22 bronze bushings; lock pins Ø12. '+
               'No reinforcement yet — see the board deflection rows in Checks.',
-         set:{ L:2000, fold:0, motion:'hands', conn:true } },
+         set:{ seatX:2, L:2000, fold:0, motion:'hands', conn:true } },
     P3:{ name:'P3 · 2.4 m XL', tag:'2400 long — the bigger option. Boards need 3 m stock.',
          note:'<b>P1 Rev 3, 2.4 m.</b> The longest version that still comes out of one 3 m board per slat. '+
               'Same mechanism and end frames; <i>Length</i> goes to 3000 mm if you want it bigger still. '+
               'Set <i>Stock length</i> to 3000 (or 3600) to match what the yard sells.',
-         set:{ L:2400, fold:0, motion:'hands', conn:true } },
+         set:{ seatX:2, L:2400, fold:0, motion:'hands', conn:true } },
     P1:{ name:'P1 Rev 2', tag:'1520 long, 38×89 throughout. Stops T4/T5, lock pins, bushed pivots.',
          note:'<b>P1 Rev 2.</b> Matches <code>folding-P1/rev2/</code>: T3 removed, T4 spread stop and T5 bench stop added, '+
               'T2 and S1 lengthened, bushed pivots (now M12 / Ø18 sleeve), Ø12 indexing lock pin. Drag <i>Fold</i> to run the mechanism; '+
               '<i>Hands-off</i> lets the front seat hang under gravity the way it really will.',
-         set:{ L:1520, fold:0, motion:'hands', conn:true } }
+         set:{ L:1520, seatX:0, fold:0, motion:'hands', conn:true } }
   },
   build:function(P, ctx){
     var F = FOLDING_P1, d = (P.L - F.L0)/2;
@@ -1306,13 +1406,8 @@ DESIGNS.folding = {
       ctx.warnings.push('Folding P1 geometry is fixed to 38 × 89 — stock '+st.t+'×'+st.w+' is priced but not modelled');
 
     /* front seat orientation: held level, or the simulated hands-off path */
-    var phi = 0;
-    if(P.motion !== 'guided'){
-      var H = F.handsoff, i = 0;
-      while(i < H.length-2 && H[i+1][0] > th) i++;
-      var a = H[i], b = H[i+1], f = (a[0]===b[0]) ? 0 : (th - a[0])/(b[0]-a[0]);
-      phi = a[1] + f*(b[1]-a[1]);
-    }
+    var seatX = Math.max(0, Math.min(3, Math.round(P.seatX || 0)));
+    var phi = foldingPhi(F, th, P.motion);
     var A = rot2(F.A0, F.B, th), dA = [A[0]-F.A0[0], A[1]-F.A0[1]];
     function tf(asm){
       if(asm === 'top')   return function(q){ return rot2(q, F.B, th); };
@@ -1321,10 +1416,10 @@ DESIGNS.folding = {
     }
     function lift(asm){ var v = tf(asm)([0,1]), o = tf(asm)([0,0]); return [0, v[0]-o[0], v[1]-o[1]]; }
 
-    F.parts.forEach(function(p){
-      var sf = SOFTEN[p.id], base = sf ? roundPoly(p.poly, sf[0], sf[1]) : p.poly;
-      var poly = base.map(tf(p.asm));
-      var o = { cut:p.blank, flat:p.flat, W:p.W, note:p.note, partId:p.id };
+    foldingProfile(F, seatX).forEach(function(p){
+      var poly = p.poly.map(tf(p.asm));
+      var o = { cut:p.blank, flat:(TRIM[p.id] || p.id === 'F2') ? null : p.flat, W:p.W, note:p.note, partId:p.id };
+      if(p.id === 'F2') o.cut = p.blank + 95*seatX;
       if(p.side === 'C'){
         o.cut = p.blank + 2*d; o.flat = null; o.T = 38;
         ctx.prism(p.name, p.g, p.x0 - d, p.x1 + d, poly, lift(p.asm), o);
@@ -1356,8 +1451,16 @@ DESIGNS.folding = {
       });
     }
 
+    var SW = foldingSweep(F, seatX);
     var V = F.validation, mode = atTable ? 'TABLE' : atBench ? 'BENCH' : 'FOLDING';
     var checks = [
+      { s: SW.hits.length ? 'fail' : 'ok',
+        t: SW.hits.length ? '<b>Live sweep: '+SW.hits.length+' clash(es)</b> for this seat depth — '+SW.hits.slice(0,3).map(function(h){
+              return h.k+' by '+h.d.toFixed(0)+' mm at '+h.f+'° ('+(h.m === 'guided' ? 'held level' : 'hands-off')+')'; }).join('; ')
+           : '<b>Live sweep clean</b> for this exact geometry (seat +'+(95*seatX)+' mm, trimmed stops): 0–100° in 1° steps, held level and hands-off, '+
+             'every pair of moving parts that share X tested for overlap, plus the floor.'+
+             (seatX ? ' The hands-off path itself was simulated for the Rev 2 seat; with a longer seat, steer it by hand the first time.' : ''),
+        v: SW.hits.length+' clashes' },
       { s: V.guided===0 ? 'ok':'fail', t:'<b>Mechanism, held level.</b> 0–100° swept in 0.25° steps against every timber pair.', v: V.guided+' clashes' },
       { s: V.jams===0 ? 'ok':'fail', t:'<b>Mechanism, hands-off.</b> Front seat hangs from A under gravity, rides the floor and the rear frame, confined between T4 (0°) and T5 (100°). No jams.', v: V.jams+' jams' },
       { s: V.fasteners===0 ? 'ok':'fail', t:'<b>Fasteners in 3D.</b> Screws, M8 bolts, pivot counterbores and pin holes checked against each other.', v: V.fasteners+' clashes' },
@@ -1392,12 +1495,12 @@ DESIGNS.folding = {
         { label:'Front seat boards',          span: 2*(634 + d), b:89, h:38, tributary:95, load:2 },
         { label:'Rear seat boards',           span: 2*(552 + d), b:89, h:38, tributary:95, load:2 }
       ],
-      headline: P.L+' × 469 mm tabletop · 755 high · seats 450 · combined bench seat 374 deep',
+      headline: P.L+' × 469 mm tabletop · 755 high · seats 450 · bench seat '+(374 + 95*seatX)+' deep',
       headline2: 'Rev 3 · '+mode+(mode==='FOLDING' ? ' '+(-th)+'° · pins out' : ' · pins in')+
                  ' · M12 bushed pivots · Ø12 pins · not load-rated',
-      hardware: foldingHardware(frames), joints: F.joints, interfaces: F.interfaces, checks: checks,
+      hardware: foldingHardware(frames, seatX), joints: F.joints, interfaces: F.interfaces, checks: checks,
       fabrication: [
-        { part:'Pivots A, B', detail:'Bore Ø22, press 18/22 bushings flush with the moving faces, Ø18 × 2.5 stainless sleeve 54.5 long, M12 bolt + nyloc tightened fully (the bolt clamps the sleeve, not the timber), 3 mm UHMW thrust washer Ø48. Counterbore Ø36: 10 deep head side, 15 deep nut side.' },
+        { part:'Pivots A, B', detail:'Bore Ø22, press 18/22 bushings flush with the moving faces, Ø18 × 2 stainless sleeve 54.5 long, M12 bolt + nyloc tightened fully (the bolt clamps the sleeve, not the timber), 3 mm UHMW thrust washer Ø48. Counterbore Ø36: 10 deep head side, 15 deep nut side.' },
         { part:'Lock pin', detail:'Match-drill Ø12.5 through F1 into T1 in each locked pose (table, then bench).' },
         { part:'Stops', detail:'T4 flush with the table end, bearing on F1 upper flank; T5 under the tabletop, bearing on F1 rear flank in bench pose; S1 lapped full height on R4. Glue + screws; T4 also 1 × M8.' },
         { part:'Lock pins', detail:'Tether each Ø12 pin to the frame with a short stainless cable so it cannot be lost while the bench is converted; common on commercial convertible-bench plans.' },
@@ -3769,7 +3872,8 @@ var ptrs={}, pinch=null;
 function ptrDist(){ var k=Object.keys(ptrs); if(k.length<2) return 0;
   var a=ptrs[k[0]], b=ptrs[k[1]]; return Math.hypot(a.x-b.x, a.y-b.y); }
 host.addEventListener('pointerdown', function(e){
-  if(VIEWTAB!=='3d') return;
+  /* only presses on the canvas orbit; buttons and panels over it keep their clicks */
+  if(VIEWTAB!=='3d' || e.target !== cv) return;
   ptrs[e.pointerId]={x:e.clientX,y:e.clientY};
   host.setPointerCapture(e.pointerId);
   if(Object.keys(ptrs).length===2){ pinch={d:ptrDist(), dist:dist}; drag=null; return; }
