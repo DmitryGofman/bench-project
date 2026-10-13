@@ -1,0 +1,27 @@
+<!doctype html>
+<html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Bench suppliers · Tel Aviv</title>
+<style>
+  :root{--bg:#15181c;--panel:#1d2126;--rule:#333b44;--fg:#e7ebef;--dim:#8b959f;--acc:#e8b33a}
+  body{margin:0;background:var(--bg);color:var(--fg);font:15px/1.55 system-ui,-apple-system,sans-serif}
+  main{max-width:1100px;margin:0 auto;padding:20px 16px 60px}
+  a{color:var(--acc)} h1{font-size:24px} h2{font-size:18px;margin-top:32px;border-top:1px solid var(--rule);padding-top:18px}
+  .wrap{overflow-x:auto;-webkit-overflow-scrolling:touch}
+  table{border-collapse:collapse;font-size:13px;min-width:720px}
+  th,td{border-bottom:1px solid var(--rule);padding:7px 8px;text-align:left;vertical-align:top}
+  th{color:var(--dim);font-weight:500}
+  code{background:var(--panel);padding:1px 4px} nav a{margin-right:14px}
+</style></head><body><main>
+<nav><a href="../">← home</a><a href="index.html">Folding bench app</a><a href="concepts.html">Four concepts</a></nav>
+<div id="doc">Loading…</div>
+</main>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/marked/12.0.2/marked.min.js"></script>
+<script>
+fetch('suppliers-tel-aviv.md').then(function(r){ return r.text(); }).then(function(md){
+  var d = document.getElementById('doc');
+  d.innerHTML = marked.parse(md);
+  d.querySelectorAll('table').forEach(function(t){ var w = document.createElement('div'); w.className = 'wrap'; t.parentNode.insertBefore(w, t); w.appendChild(t); });
+  d.querySelectorAll('a').forEach(function(a){ a.target = '_blank'; a.rel = 'noopener'; });
+}).catch(function(){ document.getElementById('doc').innerHTML = '<a href="suppliers-tel-aviv.md">Open the supplier list (Markdown)</a>'; });
+</script>
+</body></html>

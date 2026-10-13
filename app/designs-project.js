@@ -331,6 +331,8 @@ DESIGNS.folding = {
       { s: V.jams===0 ? 'ok':'fail', t:'<b>Mechanism, hands-off.</b> Front seat hangs from A under gravity, rides the floor and the rear frame, confined between T4 (0°) and T5 (100°). No jams.', v: V.jams+' jams' },
       { s: V.fasteners===0 ? 'ok':'fail', t:'<b>Fasteners in 3D.</b> Screws, M8 bolts, pivot counterbores and pin holes checked against each other.', v: V.fasteners+' clashes' },
       { s:'ok', t:'<b>Endpoints locked.</b> Table: '+V.rigidity.table['+1°']+' / pin stops folding. Bench: '+V.rigidity.bench['+1°']+' and '+V.rigidity.bench['−1°']+' with the pin in.', v:'pin r '+V.pin.radius_from_A+' mm' },
+      { s:'warn', t:'<b>Timber size in Israel.</b> This mechanism is drawn for 38 × 89. Israeli yards sell "2×4" as 45 × 95 or 42 × 92 — '+
+          'have it planed to 38 × 89 at the yard (most will), or use one of the four concepts, which are designed for 45 × 95.', v:'38×89' },
       { s:'ok', t:'<b>Pivots M12 on Ø18 sleeves.</b> Bushing bore Ø22 leaves ≥ 28 mm of timber to every member edge; '+
           'Ø36 counterbores stay ≥ 9 mm clear of the lock-pin hole and ≥ 18 mm clear of the M8 bolt. Bearing on the '+
           '38 mm cheek at 4 kN: '+(4000/(22*38)).toFixed(1)+' MPa (pine allows ≈ 7–8 MPa along the grain).', v:'Ø18 / M12' },

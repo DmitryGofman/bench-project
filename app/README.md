@@ -19,6 +19,18 @@ Every folder's `project.json` loads through **Export → Load a saved design** w
 - **Hardware tab**: hardware schedule, moving interfaces (bearings, stops, locks), fixed joints and fabrication notes. All of these are supplied by the design. There is also a `hardware.csv` export.
 - **Design-supplied checks** in the Checks tab: mechanism sweep, hands-off path, 3D fastener check and endpoint locking.
 
+## Concepts (`concepts.html`)
+Four clean-sheet bench ↔ table designs built on a shared engine (`concepts-project.js`, assembled by `make_concepts.py` from `index.html`). All use 45 × 95 timber, which is the Israeli "2×4", with layered side frames, M12 pivots on Ø18 sleeves and Ø12 lock pins. Each one runs a live mechanism sweep: the side profile is stepped through the motion and every pair of parts sharing a layer is tested for overlap.
+
+| Concept | Motion | Modes | Daybed |
+|---|---|---|---|
+| C1 Twin flip-back | backrest swings 75° on 1 pivot per end | two benches / picnic table | 1 m × 1.8 m, seat-to-seat |
+| C2 Swing-top | whole top swings 105° on 1 pivot per end | table / bench with head-high back | — |
+| C3 Level-lift | top on parallel links, stays level | table / daybed with fixed back | 1.5 m × 1.8 m |
+| C4 Lift-off leaves | none: two loose leaves | table / backed lounger / flat daybed | 1.6 m × 1.8 m |
+
+Suppliers: `suppliers.html` (`suppliers-tel-aviv.md`).
+
 ## Mobile
 `index.html` is responsive: at ≤760px the 3D view pins to the top and the controls and tables scroll beneath it. Touch: one finger orbits (or pans in Pan mode), two fingers pinch to zoom, tap selects a part. Source of the changes: `mobile.css`, `mobile.js` (patched in by `make_app.py`).
 
