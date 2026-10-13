@@ -1,0 +1,3455 @@
+<!doctype html><html><head><meta charset=utf8><meta name=viewport content="width=device-width,initial-scale=1"><style>:root{color-scheme:light}body{margin:0;padding:0;font:14px -apple-system,BlinkMacSystemFont,sans-serif;background:#faf9f5;color:#141413}img{max-width:100%}</style></head><body>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Furniture Kit</title>
+<!--
+  furniture-kit / prototype 04
+  ---------------------------------------------------------------------------
+  What changed from 03, and why:
+
+  1. STOCK IS PER AREA. Posts, rails, slats and ties each carry their own
+     board section. This forced the real fix to LIMIT-3: a design no longer
+     asks for "80×80" and hope lamination reaches it. It asks for "4 boards",
+     and the section is DERIVED — 4 × 20×80 gives 80×80, 4 × 22×95 gives
+     88×95. Geometry follows the timber, so an unbuildable section can no
+     longer be expressed. LIMIT-3 is gone by construction, not by warning.
+
+  2. REAL DEPTH BUFFER. 03 sorted faces by centroid distance (painter's
+     algorithm), which is simply wrong for interpenetrating boxes — and every
+     joint in this model interpenetrates. Replaced with raw WebGL: per-pixel
+     depth test, MSAA, key/fill lighting, edge lines, an occluding grid and a
+     soft contact shadow. No three.js, no dependencies.
+
+  3. REPORT MODES, from dprojects/Woodworking's getKey(): one scan of the
+     parts array, several schedules over it — by name, by area, by dimension
+     only, or by section total. Their key is composed from sorted dimensions
+     plus optionally label and/or group; mine now does the same.
+
+  Also carried over from the repo reading:
+     - `bom:false` per part (their Woodworking_BOM property) so hardware opts
+       out of every schedule with no special-casing in the extractor.
+     - `info{designer,version,license}` provenance (O-LAP's Design.info).
+     - getWeight — mass matters for a bench you have to carry.
+
+  NOT taken from O-LAP: its updateGeom(group, sliceManager) mutates a
+  THREE scene and slices solids into planar ribs for CNC sheet cutting. That
+  is a mesh-slicer for plywood; it has no parts list. Wrong model for
+  beam-and-screw work, so nothing was ported.
+
+  Section banners map onto the proposed repo layout:
+      core/  §1   designs/ §2   viewers/ §3 §4   outputs/ §5
+      checks/ §6  index.html §7
+-->
+<style>
+  :root{
+    --ink:#15181c; --panel:#1d2126; --panel2:#242a31; --rule:#333b44;
+    --fg:#e7ebef; --dim:#8b959f; --dimmer:#5f6a75;
+    --pencil:#e8b33a; --blue:#69a8c4; --red:#d4736a; --green:#7fb069;
+    --mono: ui-monospace, "SF Mono", SFMono-Regular, Menlo, Consolas, "Liberation Mono", "Arial Hebrew", Arial, monospace;
+    --sans: "Helvetica Neue", Inter, system-ui, -apple-system, sans-serif;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;height:100%;background:var(--ink);color:var(--fg);
+            font-family:var(--mono);font-size:13px;-webkit-font-smoothing:antialiased}
+  body{display:grid;grid-template-columns:296px 1fr;grid-template-rows:1fr auto;height:100vh;overflow:hidden}
+
+  #rail{grid-row:1/3;background:var(--panel);border-right:1px solid var(--rule);overflow-y:auto;padding:16px 14px 40px}
+  .eyebrow{font-family:var(--sans);font-size:10px;letter-spacing:.18em;text-transform:uppercase;
+           color:var(--dimmer);margin:0 0 10px}
+  h1{font-family:var(--sans);font-size:19px;font-weight:700;letter-spacing:-.02em;margin:0 0 2px}
+  .sub{color:var(--dim);font-size:11.5px;line-height:1.5;margin:0 0 16px}
+  .prov{color:var(--dimmer);font-size:10.5px;margin:-10px 0 16px;line-height:1.5}
+  .vbtn{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--rule);
+        border-left:2px solid transparent;color:var(--dim);padding:9px 10px;cursor:pointer;
+        font-family:var(--mono);font-size:11.5px;line-height:1.35;margin-bottom:6px}
+  .vbtn b{display:block;font-family:var(--sans);font-size:12.5px;color:var(--fg);font-weight:600;margin-bottom:2px}
+  .vbtn:hover{border-color:var(--dimmer)}
+  .vbtn.on{border-left-color:var(--pencil);background:#2b3138;color:var(--fg)}
+  .vbtn.on b{color:var(--pencil)}
+  .note{border-left:2px solid var(--rule);padding:8px 0 8px 10px;margin:10px 0 4px;
+        color:var(--dim);font-size:11.5px;line-height:1.55}
+  .note b{color:var(--fg);font-weight:400}
+  .grp{margin-top:16px;padding-top:14px;border-top:1px solid var(--rule)}
+  .row{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:5px;gap:8px}
+  .row label{color:var(--dim);font-size:11.5px}
+  .row output{color:var(--pencil);font-variant-numeric:tabular-nums}
+  input[type=range]{width:100%;margin:0 0 12px;accent-color:var(--pencil);height:16px}
+  input[type=number]{width:100%;background:var(--panel2);border:1px solid var(--rule);color:var(--fg);
+                     font-family:var(--mono);font-size:11.5px;padding:4px 6px}
+  select{width:100%;background:var(--panel2);border:1px solid var(--rule);color:var(--fg);
+         font-family:var(--mono);font-size:11.5px;padding:4px 6px}
+  .chk{display:flex;align-items:center;gap:8px;color:var(--dim);font-size:11.5px;margin-bottom:8px;cursor:pointer}
+  .chk input{accent-color:var(--pencil)}
+  .seg{display:flex;margin-bottom:10px}
+  .seg button{flex:1;background:none;border:1px solid var(--rule);border-right-width:0;color:var(--dim);
+              padding:6px 2px;cursor:pointer;font-family:var(--mono);font-size:10.5px;white-space:nowrap}
+  .seg button:last-child{border-right-width:1px}
+  .seg button.on{background:var(--pencil);border-color:var(--pencil);color:#1a1408}
+
+  /* per-area stock block */
+  .area{border:1px solid var(--rule);border-left:2px solid var(--sw,var(--dimmer));
+        padding:8px 9px;margin-bottom:7px;background:var(--panel2)}
+  .area .top{display:flex;justify-content:space-between;align-items:baseline;margin-bottom:6px}
+  .area .nm{color:var(--fg);font-size:11.5px}
+  .area .got{color:var(--pencil);font-size:11px;font-variant-numeric:tabular-nums}
+  .area .fields{display:grid;grid-template-columns:1fr 52px 52px;gap:5px;align-items:center}
+  .area .cap{grid-column:1/4;color:var(--dimmer);font-size:10px;margin-top:4px;line-height:1.4}
+
+  .pad{display:grid;grid-template-columns:repeat(3,1fr);gap:5px;margin-bottom:10px}
+  .pad button{background:var(--panel2);border:1px solid var(--rule);color:var(--fg);padding:8px 0;
+              cursor:pointer;font-family:var(--mono);font-size:12px}
+  .pad button:hover{border-color:var(--pencil);color:var(--pencil)}
+  .pad .lbl{display:flex;align-items:center;justify-content:center;color:var(--dimmer);font-size:10px;
+            letter-spacing:.1em;font-family:var(--sans);text-transform:uppercase}
+  .views{display:flex;gap:5px;flex-wrap:wrap;margin-top:4px}
+  .views button,.ghost{background:none;border:1px solid var(--rule);color:var(--dim);padding:5px 9px;
+                       cursor:pointer;font-family:var(--mono);font-size:11px}
+  .views button:hover,.ghost:hover{border-color:var(--pencil);color:var(--pencil)}
+
+  #view{position:relative;background:#14171b;overflow:hidden;touch-action:none}
+  #cv{display:block;width:100%;height:100%}
+  #svgWrap{position:absolute;inset:0;display:none;overflow:auto;background:#f4f1ea}
+  #svgWrap svg{display:block;margin:0 auto}
+  #hud{position:absolute;left:16px;top:14px;pointer-events:none}
+  #hud .t{font-family:var(--sans);font-size:21px;font-weight:700;letter-spacing:-.02em}
+  #hud .d{color:var(--dim);font-size:11.5px;margin-top:3px;font-variant-numeric:tabular-nums;line-height:1.5}
+  #vtabs{position:absolute;right:14px;top:12px;display:flex}
+  #vtabs button{background:rgba(20,23,27,.8);border:1px solid var(--rule);border-right-width:0;color:var(--dim);
+                padding:5px 11px;cursor:pointer;font-family:var(--mono);font-size:11px}
+  #vtabs button:last-child{border-right-width:1px}
+  #vtabs button.on{background:var(--pencil);border-color:var(--pencil);color:#1a1408}
+  #tip{position:absolute;right:14px;bottom:12px;color:var(--dimmer);font-size:10.5px;
+       pointer-events:none;text-align:right;line-height:1.6}
+  #sel{position:absolute;right:14px;top:46px;width:250px;background:rgba(23,27,32,.95);
+       border:1px solid var(--rule);border-left:2px solid #5cc7fa;padding:11px 12px;display:none}
+  #sel .selhead{display:flex;justify-content:space-between;align-items:baseline;gap:8px}
+  #sel .selhead b{font-family:var(--sans);font-size:13px;color:#7fd0fb;font-weight:600}
+  #sel .seldims{color:var(--dim);font-size:11px;line-height:1.6;margin-top:6px;
+                font-variant-numeric:tabular-nums}
+  #sel textarea{width:100%;height:58px;background:#14171b;border:1px solid var(--rule);
+                color:var(--fg);font-family:var(--mono);font-size:11px;padding:6px 7px;resize:vertical}
+  #sel .selbtns{display:flex;gap:6px;align-items:center;margin-top:6px}
+  #sel .msg{color:var(--green);font-size:10.5px}
+  #err{position:absolute;inset:0;display:none;place-content:center;padding:24px;color:var(--red);
+       font-size:12px;text-align:center;line-height:1.6;background:rgba(21,24,28,.94)}
+
+  #panel{grid-column:2;background:var(--panel);border-top:1px solid var(--rule);height:40vh;
+         display:flex;flex-direction:column;min-height:0}
+  #ptabs{display:flex;align-items:center;border-bottom:1px solid var(--rule);padding:0 10px;flex:none}
+  #ptabs button{background:none;border:none;border-bottom:2px solid transparent;color:var(--dim);
+                padding:9px 12px;cursor:pointer;font-family:var(--sans);font-size:10px;
+                letter-spacing:.14em;text-transform:uppercase}
+  #ptabs button.on{color:var(--pencil);border-bottom-color:var(--pencil)}
+  #ptabs .stats{margin-left:auto;display:flex;gap:13px;padding-right:8px;flex-wrap:nowrap;overflow-x:auto}
+  #ptabs .stat{color:var(--dim);font-size:11.5px;font-variant-numeric:tabular-nums;white-space:nowrap}
+  #ptabs .stat b{color:var(--fg);font-weight:400}
+  #pbody{overflow:auto;flex:1;min-height:0}
+  .pane{display:none}
+  .pane.on{display:block}
+  .modebar{display:flex;align-items:center;gap:8px;padding:8px 16px;border-bottom:1px solid var(--rule);
+           color:var(--dimmer);font-size:10.5px;flex-wrap:wrap}
+  .modebar .seg{margin:0;width:auto}
+  .modebar .seg button{padding:4px 10px}
+
+  table{border-collapse:collapse;width:100%;font-variant-numeric:tabular-nums}
+  th{position:sticky;top:0;background:var(--panel);text-align:left;font-weight:400;color:var(--dimmer);
+     font-size:10px;letter-spacing:.12em;text-transform:uppercase;font-family:var(--sans);
+     padding:7px 16px;border-bottom:1px solid var(--rule);white-space:nowrap;z-index:1}
+  td{padding:6px 16px;border-bottom:1px solid #23282e;font-size:12px;white-space:nowrap}
+  tbody tr{cursor:crosshair}
+  tbody tr:hover{background:#2b3138}
+  tbody tr:hover td:first-child{box-shadow:inset 2px 0 0 var(--pencil)}
+  td.num{color:var(--blue)} td.dim{color:var(--dim)}
+  tr.tot td{border-top:1px solid var(--rule);color:var(--fg)}
+  .swatch{display:inline-block;width:8px;height:8px;margin-right:7px;vertical-align:baseline}
+
+  .nest{padding:12px 16px 20px}
+  .nsec{font-family:var(--sans);font-size:10px;letter-spacing:.14em;text-transform:uppercase;
+        color:var(--dimmer);margin:14px 0 8px}
+  .bar{display:flex;height:26px;border:1px solid var(--rule);margin-bottom:4px;background:#1a1e23;
+       font-size:10px;overflow:hidden}
+  .bar span{display:flex;align-items:center;justify-content:center;border-right:1px solid #1a1e23;
+            overflow:hidden;white-space:nowrap;color:#1a1408}
+  .bar .waste{background:repeating-linear-gradient(45deg,#242a31,#242a31 4px,#1e2329 4px,#1e2329 8px);
+              color:var(--dimmer);border-right:none}
+  .barlbl{display:flex;justify-content:space-between;color:var(--dimmer);font-size:10.5px;margin-bottom:10px}
+
+  .checks{padding:8px 16px 20px}
+  .chkrow{display:flex;gap:10px;align-items:flex-start;padding:9px 0;border-bottom:1px solid #23282e;line-height:1.5}
+  .chkrow .tag{flex:none;width:52px;font-size:10px;letter-spacing:.1em;font-family:var(--sans);
+               text-transform:uppercase;padding-top:2px}
+  .ok .tag{color:var(--green)} .warn .tag{color:var(--pencil)} .fail .tag{color:var(--red)}
+  .chkrow .txt{color:var(--dim);font-size:12px}
+  .chkrow .txt b{color:var(--fg);font-weight:400}
+  .chkrow .val{margin-left:auto;color:var(--blue);font-variant-numeric:tabular-nums;font-size:12px;flex:none;padding-left:12px}
+
+  .exp{padding:14px 16px 20px;display:grid;grid-template-columns:210px 1fr;gap:16px;min-height:0}
+  .exp .list button{display:block;width:100%;text-align:left;background:var(--panel2);border:1px solid var(--rule);
+                    border-left:2px solid transparent;color:var(--dim);padding:7px 10px;cursor:pointer;
+                    font-family:var(--mono);font-size:11.5px;margin-bottom:5px}
+  .exp .list button.on{border-left-color:var(--pencil);color:var(--fg);background:#2b3138}
+  .exp .out{display:flex;flex-direction:column;min-width:0}
+  .exp .out .bar2{display:flex;gap:6px;margin-bottom:8px;align-items:center}
+  .exp .out .bar2 .msg{color:var(--green);font-size:11px}
+  pre#expText{margin:0;background:#14171b;border:1px solid var(--rule);padding:10px 12px;overflow:auto;
+              max-height:26vh;font-size:11px;line-height:1.5;color:var(--dim);white-space:pre}
+  .imp textarea{width:100%;height:70px;background:#14171b;border:1px solid var(--rule);
+                color:var(--dim);font-family:var(--mono);font-size:11px;padding:8px 10px;resize:vertical}
+  .imp input[type=file]{color:var(--dim);font-family:var(--mono);font-size:11px;width:auto}
+  .imp .msg{font-size:11px}
+  .imp .msg.bad{color:var(--red)}
+
+  @media (max-width:980px){
+    body{grid-template-columns:1fr;grid-template-rows:auto 44vh auto}
+    #rail{grid-row:auto;border-right:none;border-bottom:1px solid var(--rule);max-height:34vh}
+    #panel{grid-column:1;height:32vh}
+    .exp{grid-template-columns:1fr}
+  }
+</style>
+
+<div id="rail">
+  <p class="eyebrow">furniture-kit · prototype 04</p>
+  <h1 id="dTitle">—</h1>
+  <p class="sub" id="dBlurb">—</p>
+  <p class="prov" id="dProv">—</p>
+
+  <p class="eyebrow">Design</p>
+  <div id="designList"></div>
+
+  <p class="eyebrow" style="margin-top:16px">Variant</p>
+  <div id="variantList"></div>
+  <div class="note" id="vnote"></div>
+
+  <div class="grp">
+    <p class="eyebrow">Stock by area</p>
+    <p class="sub" style="margin:-4px 0 10px;font-size:11px">
+      Each area gets its own board. Sections are derived — a post is
+      <i>n boards</i>, not a number in millimetres — so changing the timber
+      changes the geometry, and an unbuildable section can't be asked for.
+    </p>
+    <div id="areaHost"></div>
+    <div id="sheetHost" style="display:none">
+      <div class="area" style="--sw:#8fa2b5">
+        <div class="top"><span class="nm">Sheet good</span><span class="got" id="sheetGot"></span></div>
+        <div class="fields" style="grid-template-columns:1fr 1fr">
+          <input type="number" id="shT" step="1" min="6" title="thickness">
+          <input type="number" id="shP" step="1" min="0" title="price per sheet">
+          <input type="number" id="shL" step="10" min="300" title="sheet length">
+          <input type="number" id="shW" step="10" min="300" title="sheet width">
+          <div class="cap">Thickness / price, then sheet length &times; width. Panels are
+            nested on these separately from the linear bars.</div>
+        </div>
+      </div>
+    </div>
+    <div class="row" style="margin-top:10px"><label>Stock length</label><input type="number" id="nLen" step="100" style="width:80px"></div>
+    <div class="row"><label>Saw kerf</label><input type="number" id="nKerf" step="1" style="width:80px"></div>
+    <div class="row"><label>Density kg/m³</label><input type="number" id="nDens" step="10" style="width:80px"></div>
+  </div>
+
+  <div id="paramHost"></div>
+
+  <div class="grp">
+    <p class="eyebrow">Move the view</p>
+    <div class="seg" id="segMode">
+      <button data-m="orbit" class="on">Orbit</button>
+      <button data-m="pan">Pan</button>
+    </div>
+    <div class="pad">
+      <button data-ax="x-">&minus;</button><div class="lbl">X</div><button data-ax="x+">+</button>
+      <button data-ax="y-">&minus;</button><div class="lbl">Y</div><button data-ax="y+">+</button>
+      <button data-ax="z-">&minus;</button><div class="lbl">Z</div><button data-ax="z+">+</button>
+    </div>
+    <div class="row"><label>Zoom</label><output id="oZ"></output></div>
+    <input type="range" id="sZ" min="700" max="9000" step="50">
+    <div class="views">
+      <button data-view="iso">Iso</button><button data-view="front">Front</button>
+      <button data-view="side">End</button><button data-view="top">Top</button><button data-view="reset">Reset</button>
+    </div>
+    <div class="row" style="margin-top:12px"><label>Explode</label><output id="oX">0 mm</output></div>
+    <input type="range" id="sX" min="0" max="600" step="5" value="0">
+    <label class="chk"><input type="checkbox" id="cLams" checked> Show glue-up boards</label>
+    <label class="chk"><input type="checkbox" id="cEdges" checked> Edge lines</label>
+    <label class="chk"><input type="checkbox" id="cGrid" checked> Ground grid</label>
+  </div>
+</div>
+
+<div id="view">
+  <canvas id="cv"></canvas>
+  <div id="svgWrap"></div>
+  <div id="hud"><div class="t" id="hudT"></div><div class="d" id="hudD"></div></div>
+  <div id="vtabs">
+    <button data-vt="3d" class="on">3D</button>
+    <button data-vt="draw">Drawing</button>
+  </div>
+  <div id="tip">drag to orbit &nbsp;·&nbsp; shift-drag or right-drag to pan<br>
+    arrow keys move X / Y &nbsp;·&nbsp; page up / down moves Z &nbsp;·&nbsp; scroll to zoom</div>
+  <div id="err"></div>
+  <div id="sel">
+    <div class="selhead">
+      <b id="selName">—</b>
+      <button class="ghost" id="selClose" style="padding:2px 7px">×</button>
+    </div>
+    <div class="seldims" id="selDims"></div>
+    <p class="eyebrow" style="margin:10px 0 5px">Note for this part</p>
+    <textarea id="selNote" placeholder="e.g. house this into the post, 8 mm deep"></textarea>
+    <div class="selbtns">
+      <button class="ghost" id="selCopy">Copy reference</button>
+      <span class="msg" id="selMsg"></span>
+    </div>
+  </div>
+</div>
+
+<div id="panel">
+  <div id="ptabs">
+    <button data-p="cut" class="on">Schedule</button>
+    <button data-p="nest">Nesting</button>
+    <button data-p="compare">Compare</button>
+    <button data-p="checks">Checks</button>
+    <button data-p="cost">Cost</button>
+    <button data-p="export">Export</button>
+    <div class="stats">
+      <span class="stat">parts <b id="stPc"></b></span>
+      <span class="stat">boards <b id="stBd"></b></span>
+      <span class="stat">timber <b id="stM"></b></span>
+      <span class="stat">stock <b id="stB"></b></span>
+      <span class="stat">waste <b id="stW"></b></span>
+      <span class="stat">mass <b id="stKg"></b></span>
+      <span class="stat">cost <b id="stC"></b></span>
+    </div>
+  </div>
+  <div id="pbody">
+    <div class="pane on" id="paneCut">
+      <div class="modebar">
+        <span>Group rows by</span>
+        <div class="seg" id="segReport">
+          <button data-r="name" class="on">Name</button>
+          <button data-r="group">Area</button>
+          <button data-r="dim">Dimension only</button>
+          <button data-r="section">Section total</button>
+        </div>
+        <span id="reportHint"></span>
+      </div>
+      <table><thead><tr id="cutHead"></tr></thead><tbody id="tbCut"></tbody></table>
+    </div>
+    <div class="pane" id="paneNest"><div class="nest" id="nestBody"></div></div>
+    <div class="pane" id="paneCompare">
+      <table><thead><tr>
+        <th>Variant</th><th>Parts</th><th>Boards</th><th>Timber</th><th>Stock</th>
+        <th>Waste</th><th>Mass</th><th>Cost</th><th>Max span</th><th>Deflection</th>
+      </tr></thead><tbody id="tbCmp"></tbody></table>
+    </div>
+    <div class="pane" id="paneChecks"><div class="checks" id="checkBody"></div></div>
+    <div class="pane" id="paneCost">
+      <div class="modebar">
+        <span>VAT %</span><input type="number" id="cVat" step="1" style="width:56px">
+        <span>ILS / cut, bar</span><input type="number" id="cCutBar" step="0.5" style="width:56px">
+        <span>ILS / cut, sheet</span><input type="number" id="cCutSheet" step="0.5" style="width:56px">
+        <span id="costHint"></span>
+      </div>
+      <table><thead><tr>
+        <th>Item</th><th>Areas</th><th>Qty</th><th>Unit</th><th>ILS each</th><th>ILS </th>
+      </tr></thead><tbody id="tbCost"></tbody></table>
+      <p class="sub" id="costNote" style="padding:12px 16px 20px;margin:0"></p>
+    </div>
+    <div class="pane" id="paneExport">
+      <div class="exp">
+        <div class="list" id="expList"></div>
+        <div class="out">
+          <div class="bar2">
+            <button class="ghost" id="btnCopy">Copy</button>
+            <button class="ghost" id="btnDl">Download</button>
+            <span class="msg" id="expMsg"></span>
+          </div>
+          <pre id="expText"></pre>
+          <div class="imp">
+            <p class="eyebrow" style="margin:14px 0 8px">Load a saved design</p>
+            <div class="bar2">
+              <input type="file" id="impFile" accept=".json,application/json">
+              <button class="ghost" id="btnImport">Load pasted text</button>
+              <span class="msg" id="impMsg"></span>
+            </div>
+            <textarea id="impText" placeholder="…or paste a design.json here"></textarea>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+"use strict";
+
+/* =========================================================================
+   §1  core/ — stock, derived sections, parts model
+   -------------------------------------------------------------------------
+   The central change in 04. A design never states a section in millimetres.
+   It states an AREA ("post") and a LAMINATION COUNT ("4 boards"). The
+   section falls out of whatever stock that area is set to:
+
+       built('post', 4) with 20×80  ->  80 × 80  (lam 4)
+       built('post', 4) with 22×95  ->  88 × 95  (lam 4)
+
+   Geometry then uses .a and .b, so the whole piece resizes with the timber.
+   ========================================================================= */
+
+var PRESET_SECTIONS = [
+  [18,70],[19,89],[20,80],[22,95],[25,100],[25,150],[32,100],[38,89],[45,95],[47,100]
+];
+
+/* A part's two ends may be cut at an angle. In the part's own frame the axis
+   runs along local Z and the end planes are
+
+       near end :  z = -halfLen + y*tan(cut1)
+       far  end :  z = +halfLen + y*tan(cut2)
+
+   so a bevel is one scalar per end and the solid stays an 8-corner prism.
+   Rotation is only ever about X, which is why a single angle per end is
+   enough — every bevel this model can express lies in the YZ plane. */
+function bevelLength(size, cut1, cut2){
+  var hy = size[1]/2;
+  return size[2] + hy*(Math.abs(Math.tan(cut1||0)) + Math.abs(Math.tan(cut2||0)));
+}
+
+function makeCtx(stockFor, sheet){
+  var parts = [], warnings = [];
+
+  function record(name, area, size, pos, ex, rot, lam, len, cuts){
+    var st = stockFor(area);
+    var d = size.slice().sort(function(x,y){ return x-y; });
+    var c1 = (cuts && cuts.a) || 0, c2 = (cuts && cuts.b) || 0;
+    var cut = (len==null) ? d[2] : len;
+    if(c1 || c2) cut = bevelLength(size, c1, c2);
+    var secT = lam*st.t, secW = st.w;
+    parts.push({
+      name:name, group:area, kind:'linear', count:1,
+      size:size, pos:pos, ex:ex||[0,0,0], rot:rot||0,
+      lam:lam, stock:[st.t,st.w], cut1:c1, cut2:c2,
+      section:[secT, secW],
+      sec: (lam>1 ? secT+'×'+secW+' ('+lam+'×'+st.t+'×'+st.w+')' : st.t+'×'+st.w),
+      cut: cut
+    });
+  }
+
+  return {
+    parts:parts,
+    stock: stockFor,
+    sheet: sheet,
+    warnings: warnings,
+
+    /* A derived length that has been squeezed out of existence by fat boards
+       in a small frame. Returning a negative size silently produced inside-out
+       geometry; this clamps it and says so instead. */
+    span:function(label, v, min){
+      min = min || 1;
+      if(v >= min) return v;
+      warnings.push(label+' has no room — '+Math.round(v)+' mm');
+      return min;
+    },
+
+    /* the derived-section helper — a is thickness (n boards), b is width */
+    built:function(area, n){
+      var st = stockFor(area);
+      return { a: n*st.t, b: st.w, lam:n, t:st.t, w:st.w };
+    },
+
+    box:function(name, area, lam, size, pos, ex, rot, cuts){
+      record(name, area, size, pos, ex, rot, lam, null, cuts);
+    },
+
+    member:function(name, area, lam, sa, sb, p1, p2, ex, cuts){
+      var dy=p2[1]-p1[1], dz=p2[2]-p1[2], len=Math.sqrt(dy*dy+dz*dz);
+      record(name, area, [sa,sb,len],
+             [p1[0], (p1[1]+p2[1])/2, (p1[2]+p2[2])/2],
+             ex, Math.atan2(-dy,dz), lam, len, cuts);
+    },
+
+    /* Bevel needed so a member running along `dir` (a YZ vector) finishes flush
+       against a plane whose YZ normal is `n`. Square cut is bevel 0. */
+    bevelTo:function(dir, n){
+      var L = Math.hypot(dir[0], dir[1]) || 1;
+      var uZ = [dir[0]/L, dir[1]/L];
+      var uY = [uZ[1], -uZ[0]];
+      var nz = n[0]*uZ[0] + n[1]*uZ[1];
+      var ny = n[0]*uY[0] + n[1]*uY[1];
+      if(Math.abs(nz) < 1e-9) return 0;
+      return Math.atan(-ny/nz);
+    },
+
+    /* where a line through A along dir meets the plane through Q with normal n */
+    hitPlane:function(A, dir, Q, n){
+      var den = n[0]*dir[0] + n[1]*dir[1];
+      if(Math.abs(den) < 1e-9) return A.slice();
+      var t = (n[0]*(Q[0]-A[0]) + n[1]*(Q[1]-A[1]))/den;
+      return [A[0]+t*dir[0], A[1]+t*dir[1]];
+    },
+
+    /* A solid surface edge-glued from the SAME linear boards. One box in the
+       model, but n boards in the schedule — hence `count`. Nothing downstream
+       changes: it nests on bars like any other board. */
+    gluedPanel:function(name, area, lam, size, pos, ex){
+      var st = stockFor(area);
+      var n = Math.max(1, Math.ceil(size[1]/st.w));
+      var secT = lam*st.t;
+      parts.push({ name:name, group:area, kind:'linear', count:n,
+                   size:size, pos:pos, ex:ex||[0,0,0], rot:0,
+                   lam:lam, stock:[st.t,st.w], cut1:0, cut2:0, section:[secT, st.w],
+                   sec:(lam>1 ? secT+'×'+st.w+' ('+lam+'×'+st.t+'×'+st.w+')' : st.t+'×'+st.w),
+                   cut:size[0], glued:{ boards:n } });
+      return parts[parts.length-1];
+    },
+
+    /* A sheet good. NOT a linear member: it has two in-plane dimensions, comes
+       off a sheet rather than a bar, and so is invisible to bar nesting. This
+       is the second `kind` the parts model has ever needed. */
+    panel:function(name, area, size, pos, ex){
+      var dims = [size[0], size[1]].slice().sort(function(a,b){ return b-a; });
+      parts.push({ name:name, group:area, kind:'panel', count:1,
+                   size:size, pos:pos, ex:ex||[0,0,0], rot:0,
+                   lam:1, stock:[sheet.t,0], cut1:0, cut2:0,
+                   panel:{ L:Math.round(dims[0]), W:Math.round(dims[1]), t:sheet.t },
+                   section:[sheet.t, Math.round(dims[1])],
+                   sec: sheet.t+' mm sheet',
+                   cut: Math.round(dims[0]) });
+      return parts[parts.length-1];
+    },
+
+    /* bom:false — dprojects/Woodworking's Woodworking_BOM property. Drawn,
+       but invisible to every schedule, with no special case in the extractor. */
+    dot:function(name, pos, ex){
+      parts.push({ name:name, group:'head', size:[11,11,3], pos:pos, ex:ex||[0,0,1.6],
+                   rot:0, bom:false, kind:'linear', count:1, cut1:0, cut2:0,
+                   section:[0,0], stock:[0,0], sec:'—', lam:0, cut:0 });
+    },
+
+    spread:function(span, mw, gap, origin){
+      /* Rounding to the nearest count can ask for more members than fit,
+         which produces a NEGATIVE gap — i.e. slats overlapping each other.
+         Clamp to what physically fits so the gap can never go below zero. */
+      var n = Math.max(1, Math.round((span+gap)/(mw+gap)));
+      n = Math.max(1, Math.min(n, Math.floor(span/mw)));
+      var g = n>1 ? Math.max(0, (span - n*mw)/(n-1)) : 0;
+      var out=[];
+      for(var i=0;i<n;i++) out.push(origin + mw/2 + i*(mw+g));
+      return { centres:out, n:n, gap:g, crowded:(span < mw) };
+    }
+  };
+}
+
+/* =========================================================================
+   §2  designs/ — plugins: {info, areas, schema, variants, build}
+   `areas` is new: it declares which stock groups this design uses, so the
+   rail can generate a board picker per area without knowing the design.
+   ========================================================================= */
+
+var DESIGNS = {};
+
+DESIGNS.bench = {
+  id:'bench', name:'Backed bench',
+  blurb:'Closed side frames, seat and back spanning between them. Posts built up from boards.',
+  info:{ designer:'—', version:'0.4.0', license:'MIT' },
+  areas:[
+    {g:'post', label:'Posts',      def:[20,80], hint:'Front and rear legs. Laminated to a square-ish column.'},
+    {g:'rail', label:'Rails',      def:[20,80], hint:'Seat rails and cross rails — on edge, carrying the seat.'},
+    {g:'slat', label:'Seat slats', def:[20,80], hint:'Laid flat. Width and thickness both change how the seat feels.'},
+    {g:'back', label:'Back slats', def:[20,80], hint:'Also flat, raked with the back.'},
+    {g:'arm',  label:'Arms & ties',def:[20,80], hint:'Arm rail and low side rail.'}
+  ],
+  schema:[
+    {k:'L',        label:'Length',        group:'Dimensions', type:'range', min:1400, max:2400, step:50, def:2000, unit:'mm'},
+    {k:'D',        label:'Depth (frame)', group:'Dimensions', type:'range', min:420,  max:700,  step:10, def:560,  unit:'mm'},
+    {k:'Hseat',    label:'Seat height',   group:'Dimensions', type:'range', min:380,  max:500,  step:5,  def:430,  unit:'mm'},
+    {k:'Harm',     label:'Arm height',    group:'Dimensions', type:'range', min:560,  max:760,  step:5,  def:650,  unit:'mm'},
+    {k:'Hback',    label:'Back height',   group:'Dimensions', type:'range', min:700,  max:1050, step:10, def:900,  unit:'mm'},
+    {k:'rake',     label:'Back rake',     group:'Dimensions', type:'range', min:0,    max:20,   step:1,  def:0,    unit:'°'},
+    {k:'backSlats',label:'Back slats',    group:'Dimensions', type:'range', min:2,    max:9,    step:1,  def:6,    unit:''},
+    {k:'seatGap',  label:'Seat slat gap', group:'Dimensions', type:'range', min:0,    max:25,   step:1,  def:10,   unit:'mm', role:'gap'},
+    {k:'seatStyle',label:'Seat surface',  group:'Surface',    type:'select', def:'slats',
+       options:[{v:'slats',label:'Slats'},{v:'glued',label:'Glued'},{v:'sheet',label:'Sheet'}]},
+    {k:'postLam',  label:'Post build-up', group:'Build-up',   type:'select', def:4,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'},{v:4,label:'4 boards'}]},
+    {k:'railLam',  label:'Rail build-up', group:'Build-up',   type:'select', def:2,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'}]},
+    {k:'backLam',  label:'Back build-up', group:'Build-up',   type:'select', def:1,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'}]},
+    {k:'armLam',   label:'Arm build-up',  group:'Build-up',   type:'select', def:4,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'},{v:4,label:'4 boards'}]},
+    {k:'arms',     label:'Arms',          group:'Build-up',   type:'bool', def:true},
+    {k:'lowRail',  label:'Low side rail', group:'Build-up',   type:'bool', def:true},
+    {k:'fast',     label:'Fasteners',     group:'Build-up',   type:'select', def:'exposed',
+       options:[{v:'exposed',label:'Exposed'},{v:'hidden',label:'Hidden'}]}
+  ],
+  variants:{
+    F1:{ name:'F1 Frame',  tag:'Vertical posts, closed side box, fine back slats.',
+         note:'<b>Frame.</b> Vertical posts with arm rail and low rail closing a rectangle at each end. Single-board back slats read as a screen rather than a panel.',
+         set:{ rake:0, backSlats:6, seatGap:10, postLam:4, backLam:1, Hback:900, Harm:650 } },
+    F2:{ name:'F2 Garden', tag:'Raked back leg, rising arm, three wide slats.',
+         note:'<b>Garden.</b> Rear leg raked so the seat edge stays put and the foot splays forward, arm rising toward the back, three back slats.',
+         set:{ rake:12, backSlats:3, seatGap:14, postLam:4, backLam:2, Hback:880, Harm:640 } },
+    F3:{ name:'F3 Block',  tag:'Heavy build-up, tight gaps, near-solid seat and back.',
+         note:'<b>Block.</b> Three-board back slats and 4 mm gaps so seat and back read almost solid. Fewest parts, most timber.',
+         set:{ rake:8, backSlats:3, seatGap:4, postLam:4, backLam:3, Hback:860, Harm:660 } }
+  },
+  build:function(P, ctx, variant){
+    var post = ctx.built('post', P.postLam);
+    var rail = ctx.built('rail', P.railLam);
+    var slat = ctx.built('slat', 1);
+    /* the seat's thickness depends on how it is made, and the rails hang off it */
+    var seatT = (P.seatStyle === 'sheet') ? ctx.sheet.t : slat.a;
+    var back = ctx.built('back', P.backLam);
+    /* the arm caps the post, so by default it is built up to the same width —
+       a narrower arm leaves a ledge of bare post top either side, which reads
+       as a mistake even though it is real geometry */
+    var arm  = ctx.built('arm',  P.armLam || P.railLam);
+
+    var rake = P.rake*Math.PI/180, tanR = Math.tan(rake);
+    var backThk = Math.max(2, P.backSlats) > 0 ? back.a : 0;
+    var X0 = P.L/2 - post.a/2;
+    var yF =  P.D/2 - post.b/2, yR = -(P.D/2 - post.b/2);
+    function yRat(z){ return yR - (z - P.Hseat)*tanR; }
+
+    /* --- end cuts -------------------------------------------------------
+       A raked leg cut square across its axis stands on one corner, and a
+       square-ended rail meets a raked post on a wedge. Both ends of the rear
+       post are therefore cut HORIZONTAL (bevel -rake, which makes the leg a
+       parallelogram), and anything landing on the post's face is cut to that
+       face. The front post's top is cut to whatever angle the arm arrives at,
+       so the arm beds flat instead of rocking on an edge. */
+    var upPost  = [-Math.sin(rake), Math.cos(rake)];   /* rear post axis      */
+    var nFloor  = [0,1];                               /* horizontal cut      */
+    var bPost   = ctx.bevelTo(upPost, nFloor);         /* = -rake             */
+    var nFace   = [Math.cos(rake), Math.sin(rake)];    /* rear post face      */
+
+    /* the arm's direction is needed before the posts are placed, so the front
+       post top can be cut to match it */
+    var armRise = (variant==='F2') ? 60 : 0;
+    var armA    = [yF + post.b/2, P.Harm];
+    var armReach= Math.max(1, armA[0] - yRat(P.Harm));
+    var armDir  = [-1, armRise/armReach];
+    var adl     = Math.hypot(armDir[0], armDir[1]);
+    armDir      = [armDir[0]/adl, armDir[1]/adl];
+    var nArmBed = [armDir[1], -armDir[0]];             /* arm underside normal */
+    var bFrontTop = P.arms ? ctx.bevelTo([0,1], nArmBed) : 0;
+
+    [1,-1].forEach(function(sx){
+      ctx.member('Front post','post',post.lam, post.a, post.b,
+                 [sx*X0,yF,0],[sx*X0,yF,P.Harm],[sx*1.1,0.4,0],
+                 { a:0, b:bFrontTop });
+      ctx.member('Rear post','post',post.lam, post.a, post.b,
+                 [sx*X0,yRat(0),0],[sx*X0,yRat(P.Hback),P.Hback],[sx*1.1,-0.4,0],
+                 { a:bPost, b:bPost });
+      if(P.arms){
+        /* Now that the end can be cut to the face, the arm runs its centreline
+           all the way to the back slats' front surface and is bevelled there —
+           no wedge gap, no buried corner. */
+        var A = [armA[0], P.Harm + arm.b/2];
+        var clear = post.b/2 + backThk;
+        var Q  = [yR + clear*nFace[0], P.Hseat + clear*nFace[1]];
+        var B  = ctx.hitPlane(A, armDir, Q, nFace);
+        ctx.member('Arm rail','arm',arm.lam, arm.a, arm.b,
+                   [sx*X0, A[0], A[1]], [sx*X0, B[0], B[1]], [sx*1.1,0,0.5],
+                   { a:0, b: ctx.bevelTo(armDir, nFace) });
+      }
+      if(P.lowRail){
+        var zL = 160;
+        var Ql = [yR + (post.b/2)*nFace[0], P.Hseat + (post.b/2)*nFace[1]];
+        var dl2 = [-1, 0];
+        var Bl  = ctx.hitPlane([yF-post.b/2, zL], dl2, Ql, nFace);
+        ctx.member('Low side rail','arm',1, arm.t, arm.b,
+                   [sx*X0,yF-post.b/2,zL],[sx*X0,Bl[0],Bl[1]],[sx*1.1,0,-0.5],
+                   { a:0, b: ctx.bevelTo(dl2, nFace) });
+      }
+    });
+
+    var Lr = ctx.span('Seat rail', P.L - 2*post.a);
+    var railZ = P.Hseat - seatT - rail.b/2;
+    ctx.box('Seat rail','rail',rail.lam,[Lr,rail.a,rail.b],[0,yF,railZ],[0,1,0]);
+    ctx.box('Seat rail','rail',rail.lam,[Lr,rail.a,rail.b],[0,yR,railZ],[0,-1,0]);
+
+    var crossLen = ctx.span('Cross rail', (yF-rail.a/2)-(yR+rail.a/2));
+    var crossY = (yF+yR)/2;
+    var stations = [-Lr/2+rail.a/2, -Lr/6, Lr/6, Lr/2-rail.a/2];
+    stations.forEach(function(x){
+      ctx.box('Cross rail','rail',rail.lam,[rail.a,crossLen,rail.b],[x,crossY,railZ],[0,0,-1]);
+    });
+
+    var SDfull = ctx.span('Seat', (yF+post.b/2)-(yR-post.b/2));
+    var SD = ctx.span('Seat slats', SDfull - 2*slat.a);
+    var seat, seatSpan;
+    if(P.seatStyle === 'slats'){
+      seat = ctx.spread(SD, slat.b, P.seatGap, yR - post.b/2 + slat.a);
+      seat.centres.forEach(function(y){
+        ctx.box('Seat slat','slat',1,[Lr,slat.b,slat.a],[0,y,P.Hseat-slat.a/2],[0,0,1]);
+      });
+      seatSpan = { label:'Seat slat', b:slat.b, h:slat.a, tributary:slat.b+seat.gap };
+    } else if(P.seatStyle === 'glued'){
+      var gp = ctx.gluedPanel('Seat panel','slat',1,[Lr,SDfull,seatT],
+                              [0,(yF+yR)/2,P.Hseat-seatT/2],[0,0,1]);
+      seat = { n:gp.glued.boards, centres:[(yF+yR)/2], gap:0 };
+      seatSpan = { label:'Seat panel', b:1000, h:seatT, tributary:1000 };
+    } else {
+      ctx.panel('Seat panel','panel',[Lr,SDfull,seatT],[0,(yF+yR)/2,P.Hseat-seatT/2],[0,0,1]);
+      seat = { n:1, centres:[(yF+yR)/2], gap:0 };
+      seatSpan = { label:'Seat panel', b:1000, h:seatT, tributary:1000 };
+    }
+
+    /* Back slats lie ON the front face of the raked rear posts rather than
+       on their centreline, offset along the post normal so the rake carries
+       them forward and up together. They run the full width and screw into
+       the post face — buildable without a housing. */
+    /* Back slats are laid out IN THE PLANE OF THE BACK, not by vertical step.
+       A slat's width (back.b) is measured up that tilted plane, so two slats
+       a vertical distance dz apart are only dz/cos(rake) apart along it —
+       step vertically and they overlap each other as soon as the back is
+       raked or the run is short. Work in plane coordinate s instead, and
+       clamp the count to what actually fits. */
+    var nf2 = [Math.cos(rake), Math.sin(rake)];       /* face normal, forward */
+    var uAx = [-Math.sin(rake), Math.cos(rake)];      /* up the raked back    */
+    var off = (post.b + back.a)/2;                    /* post face + half slat thickness */
+    var zb0 = P.Hseat + 140;
+    var run = Math.max(back.b, (P.Hback - zb0)/Math.cos(rake));
+    var fits = Math.max(1, Math.floor(run/back.b));
+    var nb   = Math.max(1, Math.min(Math.max(2, P.backSlats), fits));
+    var bgap = nb>1 ? (run - nb*back.b)/(nb-1) : 0;
+    var C0   = [yRat(zb0), zb0];
+    for(var j=0;j<nb;j++){
+      var sPos = back.b/2 + j*(back.b + bgap);
+      var ay = C0[0] + sPos*uAx[0], az = C0[1] + sPos*uAx[1];
+      ctx.box('Back slat','back',back.lam,[P.L,back.a,back.b],
+              [0, ay + off*nf2[0], az + off*nf2[1]],[0,-1,0.3], rake);
+    }
+    var backDropped = Math.max(2, P.backSlats) - nb;
+
+    if(P.fast !== 'hidden'){
+      seat.centres.forEach(function(y){
+        stations.forEach(function(x){ ctx.dot('fastener',[x,y,P.Hseat]); });
+      });
+    }
+
+    var maxSpan = 0;
+    for(var i=1;i<stations.length;i++) maxSpan = Math.max(maxSpan, stations[i]-stations[i-1]-rail.a);
+    return {
+      parts: ctx.parts,
+      spans: [{ label:seatSpan.label, span:maxSpan, b:seatSpan.b, h:seatSpan.h,
+                tributary:seatSpan.tributary, load:2.0 }],
+      headline: P.L+' long · seat '+P.Hseat+' · back '+P.Hback+' mm',
+      headline2: (P.seatStyle==='slats' ? seat.n+' seat slats'
+                 : P.seatStyle==='glued' ? 'glued seat panel, '+seat.n+' boards'
+                 : ctx.sheet.t+' mm sheet seat')+' over '+Math.round(maxSpan)+' mm spans · '+
+                 nb+' back slats at '+Math.round(bgap)+' mm gap · posts '+
+                 Math.round(post.a)+'×'+Math.round(post.b)+' · '+P.rake+'° rake'+
+                 (backDropped>0 ? ' · '+backDropped+' back slat(s) dropped, no room' : '')
+    };
+  }
+};
+
+DESIGNS.table = {
+  id:'table', name:'Trestle-leg table',
+  blurb:'Four built-up legs, four aprons, slatted top. The second design — it exists to test whether the abstraction holds.',
+  info:{ designer:'—', version:'0.4.0', license:'MIT' },
+  areas:[
+    {g:'post', label:'Legs',        def:[20,80], hint:'Laminated columns at each corner.'},
+    {g:'rail', label:'Aprons',      def:[20,80], hint:'Long and end aprons plus the top bearers.'},
+    {g:'slat', label:'Top slats',   def:[20,80], hint:'The surface. Thickness here drives the deflection check.'},
+    {g:'arm',  label:'Stretcher',   def:[20,80], hint:'Foot rails and the long stretcher.'}
+  ],
+  schema:[
+    {k:'L',       label:'Length',        group:'Dimensions', type:'range', min:900, max:2600, step:50, def:1600, unit:'mm'},
+    {k:'W',       label:'Width',         group:'Dimensions', type:'range', min:500, max:1100, step:20, def:800,  unit:'mm'},
+    {k:'H',       label:'Top height',    group:'Dimensions', type:'range', min:680, max:1100, step:5,  def:740,  unit:'mm'},
+    {k:'oh',      label:'Top overhang',  group:'Dimensions', type:'range', min:0,   max:220,  step:10, def:80,   unit:'mm'},
+    {k:'topGap',  label:'Top slat gap',  group:'Dimensions', type:'range', min:0,   max:25,   step:1,  def:5,    unit:'mm', role:'gap'},
+    {k:'apron',   label:'Apron drop',    group:'Dimensions', type:'range', min:0,   max:160,  step:5,  def:20,   unit:'mm'},
+    {k:'bearers', label:'Top bearers',   group:'Dimensions', type:'range', min:0, max:4, step:1, def:2, unit:''},
+    {k:'topStyle',label:'Top surface',    group:'Surface',    type:'select', def:'slats',
+       options:[{v:'slats',label:'Slats'},{v:'glued',label:'Glued'},{v:'sheet',label:'Sheet'}]},
+    {k:'legLam',  label:'Leg build-up',  group:'Build-up',   type:'select', def:4,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'},{v:4,label:'4 boards'},{v:5,label:'5 boards'}]},
+    {k:'apronLam',label:'Apron build-up',group:'Build-up',   type:'select', def:2,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'}]},
+    {k:'topLam',  label:'Top build-up',  group:'Build-up',   type:'select', def:1,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'}]},
+    {k:'stretch', label:'Stretcher',     group:'Build-up',   type:'bool', def:true}
+  ],
+  variants:{
+    T1:{ name:'T1 Dining', tag:'Standard height, modest overhang, stretcher.',
+         note:'<b>Dining.</b> 740 top, 80 overhang so a chair tucks under the apron. Stretcher low enough to keep feet off it.',
+         set:{ H:740, oh:80, legLam:4, stretch:true, topGap:5, bearers:2, topLam:1 } },
+    T2:{ name:'T2 Bench-height', tag:'Workbench height, heavy legs, doubled top.',
+         note:'<b>Bench-height.</b> 900 top, flush ends so it can butt to a wall, five-board legs and a two-board top. The one you would actually cut timber on.',
+         set:{ H:900, oh:0, legLam:5, stretch:true, topGap:0, bearers:3, topLam:2, apronLam:3 } },
+    T3:{ name:'T3 Garden',  tag:'Long, wide gaps for drainage, no stretcher.',
+         note:'<b>Garden.</b> Long and open — 12 mm gaps so rain drains and leaves fall through. No stretcher, aprons do the work.',
+         set:{ L:2100, H:750, oh:120, legLam:4, stretch:false, topGap:12, bearers:3, topLam:1 } }
+  },
+  build:function(P, ctx){
+    var leg = ctx.built('post', P.legLam);
+    var ap  = ctx.built('rail', P.apronLam);
+    var top = ctx.built('slat', P.topLam);
+    var st  = ctx.built('arm',  P.apronLam);
+
+    var surfT = (P.topStyle === 'sheet') ? ctx.sheet.t : top.a;
+    var legH = P.H - surfT;
+    var ox = P.L/2 - P.oh - leg.a/2;
+    var oy = P.W/2 - P.oh - leg.b/2;
+
+    [1,-1].forEach(function(sx){ [1,-1].forEach(function(sy){
+      ctx.box('Leg','post',leg.lam,[leg.a,leg.b,legH],[sx*ox,sy*oy,legH/2],[sx,sy,0]);
+    });});
+
+    var apZ = legH - ap.b/2 - P.apron;
+    /* At each corner the long apron meets the end apron. Cutting them to the
+       LEG size only works while the apron is no thicker than the leg — laminate
+       the apron up and the two run into each other. Clear the larger of the two. */
+    var clrX = Math.max(leg.a, ap.a), clrY = Math.max(leg.b, ap.a);
+    var longLen = ctx.span('Long apron', 2*ox-clrX);
+    var endLen   = ctx.span('End apron',  2*oy-clrY);
+    [1,-1].forEach(function(sy){
+      ctx.box('Long apron','rail',ap.lam,[longLen,ap.a,ap.b],[0,sy*oy,apZ],[0,sy,0]);
+    });
+    [1,-1].forEach(function(sx){
+      ctx.box('End apron','rail',ap.lam,[ap.a,endLen,ap.b],[sx*ox,0,apZ],[sx,0,0]);
+    });
+
+    var runX = 2*ox - clrX;
+    var maxBear = Math.max(0, Math.floor(runX/Math.max(ap.a,1)) - 1);
+    var bearN = Math.min(P.bearers|0, maxBear);   /* bearers need a gap between them */
+    var bearDropped = (P.bearers|0) - bearN;
+    var bearLen = ctx.span('Top bearer', 2*oy - ap.a), lines = [-ox, ox];
+    for(var i=0;i<bearN;i++){
+      var x = -ox + clrX/2 + runX*(i+1)/(bearN+1);
+      ctx.box('Top bearer','rail',ap.lam,[ap.a,bearLen,ap.b],[x,0,apZ],[0,0,-1]);
+      lines.push(x);
+    }
+
+    if(P.stretch){
+      var sz = 180;
+      /* The foot rail caps the leg, so it is BUILT UP to the leg's board count
+         rather than just drawn wider. Widening the box without raising the
+         lamination made the model and the cut list disagree — the box was 80
+         wide while the schedule still said 40×80. */
+      var foot = ctx.built('arm', Math.max(st.lam, P.legLam));
+      var footLen = 2*oy - Math.max(leg.b, foot.a);
+      var strLen  = 2*ox - foot.a;
+      if(footLen > 40 && strLen > 40){
+        [1,-1].forEach(function(sx){
+          ctx.box('Foot rail','arm',foot.lam,[foot.a, footLen, foot.b],
+                  [sx*ox,0,sz],[sx,0,-0.5]);
+        });
+        ctx.box('Stretcher','arm',st.lam,[strLen,st.a,st.b],[0,0,sz],[0,0,-1]);
+      }
+    }
+
+    var tops, topSpan;
+    if(P.topStyle === 'slats'){
+      tops = ctx.spread(P.W, top.b, P.topGap, -P.W/2);
+      tops.centres.forEach(function(y){
+        ctx.box('Top slat','slat',top.lam,[P.L,top.b,top.a],[0,y,P.H-top.a/2],[0,0,1]);
+        lines.forEach(function(x){ ctx.dot('fastener',[x,y,P.H]); });
+      });
+      topSpan = { label:'Top slat', b:top.b, h:top.a, tributary:top.b+tops.gap };
+    } else if(P.topStyle === 'glued'){
+      var gp = ctx.gluedPanel('Top panel','slat',top.lam,[P.L,P.W,surfT],[0,0,P.H-surfT/2],[0,0,1]);
+      tops = { n:gp.glued.boards, gap:0 };
+      lines.forEach(function(x){ ctx.dot('fastener',[x,-P.W/2+40,P.H]); ctx.dot('fastener',[x,P.W/2-40,P.H]); });
+      topSpan = { label:'Top panel', b:1000, h:surfT, tributary:1000 };
+    } else {
+      ctx.panel('Top panel','panel',[P.L,P.W,surfT],[0,0,P.H-surfT/2],[0,0,1]);
+      tops = { n:1, gap:0 };
+      lines.forEach(function(x){ ctx.dot('fastener',[x,-P.W/2+40,P.H]); ctx.dot('fastener',[x,P.W/2-40,P.H]); });
+      topSpan = { label:'Top panel', b:1000, h:surfT, tributary:1000 };
+    }
+
+    var uniq = lines.slice().sort(function(a,b){return a-b;})
+                    .filter(function(v,i,a){ return i===0 || Math.abs(v-a[i-1])>1; });
+    var maxSpan = 0;
+    for(var k=1;k<uniq.length;k++) maxSpan = Math.max(maxSpan, uniq[k]-uniq[k-1]-ap.a);
+    if(uniq.length<2) maxSpan = 2*ox;
+
+    return {
+      parts: ctx.parts,
+      spans: [{ label:topSpan.label, span:maxSpan, b:topSpan.b, h:topSpan.h,
+                tributary:topSpan.tributary, load:2.5 }],
+      headline: P.L+' × '+P.W+' · top '+P.H+' mm',
+      headline2: (P.topStyle==='slats' ? tops.n+' top slats'
+                 : P.topStyle==='glued' ? 'glued top panel, '+tops.n+' boards'
+                 : ctx.sheet.t+' mm sheet top')+' over '+Math.round(maxSpan)+' mm spans · legs '+
+                 Math.round(leg.a)+'×'+Math.round(leg.b)+
+                 (bearDropped>0 ? ' · '+bearDropped+' bearer(s) dropped, no room' : '')
+    };
+  }
+};
+
+DESIGNS.shelf = {
+  id:'shelf', name:'Open shelf unit',
+  blurb:'Four posts, paired side rails at each level, slats running front-to-back. The third design — vertical repetition, no rake.',
+  info:{ designer:'—', version:'0.4.0', license:'MIT' },
+  areas:[
+    {g:'post', label:'Posts',       def:[20,80], hint:'Corner uprights, full height.'},
+    {g:'rail', label:'Shelf rails', def:[20,80], hint:'Front and back at every level — these carry everything.'},
+    {g:'slat', label:'Shelf slats', def:[20,80], hint:'Front-to-back. Span is the depth, so width is free.'},
+    {g:'arm',  label:'Ties',        def:[20,80], hint:'Top ties that stop the frame racking.'}
+  ],
+  schema:[
+    {k:'L',      label:'Width',        group:'Dimensions', type:'range', min:600, max:1600, step:50, def:900,  unit:'mm'},
+    {k:'D',      label:'Depth',        group:'Dimensions', type:'range', min:200, max:500,  step:10, def:300,  unit:'mm'},
+    {k:'H',      label:'Height',       group:'Dimensions', type:'range', min:800, max:2200, step:20, def:1800, unit:'mm'},
+    {k:'levels', label:'Shelves',      group:'Dimensions', type:'range', min:2,   max:7,    step:1,  def:5,    unit:''},
+    {k:'base',   label:'Base height',  group:'Dimensions', type:'range', min:60,  max:400,  step:10, def:120,  unit:'mm'},
+    {k:'gap',    label:'Slat gap',     group:'Dimensions', type:'range', min:0,   max:25,   step:1,  def:4,    unit:'mm', role:'gap'},
+    {k:'postLam',label:'Post build-up',group:'Build-up',   type:'select', def:2,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'},{v:3,label:'3 boards'},{v:4,label:'4 boards'}]},
+    {k:'railLam',label:'Rail build-up',group:'Build-up',   type:'select', def:1,
+       options:[{v:1,label:'1 board'},{v:2,label:'2 boards'}]},
+    {k:'topRail',label:'Top tie rails',group:'Build-up',   type:'bool', def:true}
+  ],
+  variants:{
+    S1:{ name:'S1 Library', tag:'Tall, five shelves, tight slat gaps.',
+         note:'<b>Library.</b> Five levels at even pitch, 4 mm gaps so a paperback will not tip into the void. Light posts.',
+         set:{ H:1800, levels:5, gap:4, postLam:2, D:300 } },
+    S2:{ name:'S2 Workshop', tag:'Deep, four heavy levels, wide gaps.',
+         note:'<b>Workshop.</b> Deeper and fewer levels for boxes and tins. Three-board posts, doubled rails, wide gaps for sawdust.',
+         set:{ H:1600, levels:4, gap:14, postLam:3, railLam:2, D:420, base:180 } },
+    S3:{ name:'S3 Low run', tag:'Bench-height, two levels, long and deep.',
+         note:'<b>Low run.</b> Two levels under a window. Slats run front-to-back, so stretching the width to 1500 costs rail length, not stiffness.',
+         set:{ H:900, levels:2, gap:6, postLam:3, D:340, L:1500 } }
+  },
+  build:function(P, ctx){
+    var post = ctx.built('post', P.postLam);
+    var rail = ctx.built('rail', P.railLam);
+    var slat = ctx.built('slat', 1);
+    var tie  = ctx.built('arm',  P.railLam);
+
+    var ox = P.L/2 - post.a/2, oy = P.D/2 - post.b/2;
+    [1,-1].forEach(function(sx){ [1,-1].forEach(function(sy){
+      ctx.box('Post','post',post.lam,[post.a,post.b,P.H],[sx*ox,sy*oy,P.H/2],[sx,sy,0]);
+    });});
+
+    /* the top ties occupy H-tie.b .. H, so the top shelf has to finish below
+       them or the tie runs straight through the slats */
+    var topZ = P.topRail ? (P.H - tie.b - slat.a - rail.b/2 - 10)
+                         : (P.H - rail.b/2 - 40);
+    /* one level is a rail plus the slats sitting on it; below that pitch the
+       shelves stack into one another, so drop levels rather than overlap */
+    var minPitch = rail.b + slat.a + 2;
+    var avail    = Math.max(0, topZ - P.base);
+    var maxLv    = Math.max(2, Math.floor(avail/minPitch) + 1);
+    var n        = Math.max(2, Math.min(P.levels|0, maxLv));
+    var pitch    = n>1 ? avail/(n-1) : 0;
+    var lvDropped = Math.max(2, P.levels|0) - n;
+    var railLen = ctx.span('Shelf rail', 2*ox - post.a);
+    var spans = [];
+
+    for(var i=0;i<n;i++){
+      var z = P.base + i*pitch;
+      [1,-1].forEach(function(sy){
+        ctx.box('Shelf rail','rail',rail.lam,[railLen,rail.a,rail.b],[0,sy*oy,z],[0,sy,0]);
+      });
+      var run = ctx.spread(railLen, slat.b, P.gap, -railLen/2);
+      run.centres.forEach(function(x){
+        ctx.box('Shelf slat','slat',1,[slat.b,P.D,slat.a],[x,0,z+rail.b/2+slat.a/2],[0,0,1]);
+        ctx.dot('fastener',[x, oy, z+rail.b/2+slat.a]);
+        ctx.dot('fastener',[x,-oy, z+rail.b/2+slat.a]);
+      });
+      if(i===0) spans.push({ label:'Shelf slat', span:2*oy-rail.a, b:slat.b, h:slat.a,
+                             tributary:slat.b+run.gap, load:1.5, n:run.n, gap:run.gap });
+    }
+
+    if(P.topRail){
+      /* same corner rule as the table aprons — clear the larger of post or tie */
+      var tcX = Math.max(post.a, tie.a), tcY = Math.max(post.b, tie.a);
+      var endTieLen  = ctx.span('End tie',  2*oy - tcY);
+      var backTieLen = ctx.span('Back tie', 2*ox - tcX);
+      [1,-1].forEach(function(sx){
+        ctx.box('End tie','arm',tie.lam,[tie.a,endTieLen,tie.b],[sx*ox,0,P.H-tie.b/2],[sx,0,0.4]);
+      });
+      ctx.box('Back tie','arm',tie.lam,[backTieLen,tie.a,tie.b],[0,-oy,P.H-tie.b/2],[0,-1,0.4]);
+    }
+
+    var f = spans[0] || {n:0,span:0};
+    return {
+      parts: ctx.parts,
+      spans: spans,
+      headline: P.L+' × '+P.D+' × '+P.H+' mm · '+n+' shelves',
+      headline2: f.n+' slats per shelf over '+Math.round(f.span)+' mm span · '+
+                 Math.round(pitch)+' mm pitch'+
+                 (lvDropped>0 ? ' · '+lvDropped+' shelf/shelves dropped, no room' : '')
+    };
+  }
+};
+
+/* =========================================================================
+   §3  viewers/webgl.js — real depth buffer, replacing 03's painter's sort
+   -------------------------------------------------------------------------
+   Every joint in this model interpenetrates, and no per-face sort can order
+   interpenetrating geometry correctly. This is a z-buffer, so it is right by
+   construction. Raw WebGL 1 — no three.js, no extensions.
+   ========================================================================= */
+
+var cv = document.getElementById('cv');
+var host = document.getElementById('view');
+var gl = null, GLFAIL = null;
+
+var COLOR = { post:[0.66,0.487,0.279], arm:[0.725,0.553,0.333], rail:[0.561,0.416,0.231],
+              slat:[0.824,0.655,0.416], back:[0.761,0.580,0.341], head:[0.604,0.639,0.675],
+              panel:[0.784,0.714,0.573] };
+
+/* ---- minimal mat4 ---- */
+function m4mul(a,b){
+  var o=new Float32Array(16);
+  for(var i=0;i<4;i++) for(var j=0;j<4;j++){
+    o[i*4+j]=a[i*4]*b[j]+a[i*4+1]*b[4+j]+a[i*4+2]*b[8+j]+a[i*4+3]*b[12+j];
+  }
+  return o;
+}
+function m4persp(fovy, aspect, near, far){
+  var f=1/Math.tan(fovy/2), nf=1/(near-far);
+  return new Float32Array([f/aspect,0,0,0, 0,f,0,0, 0,0,(far+near)*nf,-1, 0,0,2*far*near*nf,0]);
+}
+function m4look(eye, center, up){
+  var z=nrm(vsub(eye,center)), x=nrm(vcross(up,z)), y=vcross(z,x);
+  return new Float32Array([
+    x[0],y[0],z[0],0, x[1],y[1],z[1],0, x[2],y[2],z[2],0,
+    -vdot(x,eye), -vdot(y,eye), -vdot(z,eye), 1]);
+}
+function vsub(a,b){ return [a[0]-b[0],a[1]-b[1],a[2]-b[2]]; }
+function vdot(a,b){ return a[0]*b[0]+a[1]*b[1]+a[2]*b[2]; }
+function vcross(a,b){ return [a[1]*b[2]-a[2]*b[1],a[2]*b[0]-a[0]*b[2],a[0]*b[1]-a[1]*b[0]]; }
+function nrm(a){ var l=Math.hypot(a[0],a[1],a[2])||1; return [a[0]/l,a[1]/l,a[2]/l]; }
+
+/* ---- shaders ---- */
+var VS = [
+'attribute vec3 aPos; attribute vec3 aNorm; attribute vec3 aEx; attribute vec3 aCol;',
+'uniform mat4 uMVP; uniform float uExplode; uniform float uBias;',
+'varying vec3 vN; varying vec3 vC;',
+'void main(){',
+'  vec3 p = aPos + aEx*uExplode;',
+'  gl_Position = uMVP * vec4(p,1.0);',
+'  gl_Position.z -= uBias * gl_Position.w;',
+'  vN = aNorm; vC = aCol;',
+'}'].join('\n');
+
+var FS = [
+'precision mediump float;',
+'varying vec3 vN; varying vec3 vC;',
+'uniform float uAlpha; uniform float uFlat;',
+'uniform vec3 uKey; uniform vec3 uFill;',
+'void main(){',
+'  vec3 n = normalize(vN);',
+'  float k = max(dot(n,uKey),0.0);',
+'  float f = max(dot(n,uFill),0.0);',
+'  vec3 lit = vC * (0.34 + 0.70*k + 0.20*f);',
+'  vec3 c = mix(lit, vC, uFlat);',
+'  gl_FragColor = vec4(c, uAlpha);',
+'}'].join('\n');
+
+/* floor: procedural contact shadow from the model's XY footprint */
+var FVS = [
+'attribute vec2 aXY; uniform mat4 uMVP; varying vec2 vW;',
+'void main(){ vW = aXY; gl_Position = uMVP * vec4(aXY, 1.0, 1.0); }'].join('\n');
+var FFS = [
+'precision mediump float;',
+'varying vec2 vW;',
+'uniform vec2 uCen; uniform vec2 uHalf; uniform float uSoft;',
+'float sdBox(vec2 p, vec2 b){ vec2 d = abs(p)-b; return length(max(d,0.0)) + min(max(d.x,d.y),0.0); }',
+'void main(){',
+'  float d = sdBox(vW - uCen, uHalf);',
+'  float a = 1.0 - smoothstep(0.0, uSoft, max(d,0.0));',
+'  gl_FragColor = vec4(0.02,0.03,0.04, a*0.62);',
+'}'].join('\n');
+
+function compile(src, type){
+  var s = gl.createShader(type);
+  gl.shaderSource(s, src); gl.compileShader(s);
+  if(!gl.getShaderParameter(s, gl.COMPILE_STATUS)) throw new Error(gl.getShaderInfoLog(s));
+  return s;
+}
+function program(vs, fs){
+  var p = gl.createProgram();
+  gl.attachShader(p, compile(vs, gl.VERTEX_SHADER));
+  gl.attachShader(p, compile(fs, gl.FRAGMENT_SHADER));
+  gl.linkProgram(p);
+  if(!gl.getProgramParameter(p, gl.LINK_STATUS)) throw new Error(gl.getProgramInfoLog(p));
+  return p;
+}
+
+var PROG=null, FPROG=null, BUF={}, LOC={}, FLOC={};
+function initGL(){
+  gl = cv.getContext('webgl', {antialias:true, alpha:false, depth:true}) ||
+       cv.getContext('experimental-webgl', {antialias:true, alpha:false, depth:true});
+  if(!gl){ GLFAIL = 'WebGL is unavailable in this browser.'; return false; }
+  PROG  = program(VS, FS);
+  FPROG = program(FVS, FFS);
+  ['aPos','aNorm','aEx','aCol'].forEach(function(n){ LOC[n]=gl.getAttribLocation(PROG,n); });
+  ['uMVP','uExplode','uBias','uAlpha','uFlat','uKey','uFill'].forEach(function(n){ LOC[n]=gl.getUniformLocation(PROG,n); });
+  FLOC.aXY = gl.getAttribLocation(FPROG,'aXY');
+  ['uMVP','uCen','uHalf','uSoft'].forEach(function(n){ FLOC[n]=gl.getUniformLocation(FPROG,n); });
+  BUF.tri = gl.createBuffer(); BUF.edge = gl.createBuffer();
+  BUF.grid = gl.createBuffer(); BUF.floor = gl.createBuffer();
+  gl.enable(gl.DEPTH_TEST);
+  gl.enable(gl.CULL_FACE);
+  gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
+  buildGrid();
+  return true;
+}
+
+/* The 8 corners of a (possibly bevelled) part, in world space. Indexed
+   [sx][sy][end] -> (sx*2 + sy)*2 + end, so faces can be written by index.
+   Everything that needs geometry — WebGL, the SVG drawing and the clash
+   detector — goes through this, so a bevel can never be right in one view
+   and wrong in another. */
+/* Which local axis the boards stack along. A glue-up thickens the section in
+   one direction only, so it is the non-length axis whose extent equals the
+   built-up thickness (lam x stock thickness). Designs pass that dimension in
+   different slots depending on how the member lies, so it is derived rather
+   than assumed. Returns -1 for a single board. */
+function lamAxis(p){
+  if(!p.lam || p.lam < 2 || p.kind === 'panel') return -1;
+  var A = p.section[0], B = p.section[1];
+  /* Match the section against the axes directly. Assuming "longest axis is the
+     length" is wrong as soon as a glue-up is thicker than the member is long —
+     a 5-board leg on a short foot rail, for instance. */
+  for(var i=0;i<3;i++){
+    if(Math.abs(p.size[i] - A) > 0.51) continue;
+    for(var j=0;j<3;j++){
+      if(j === i) continue;
+      if(Math.abs(p.size[j] - B) <= 0.51) return i;
+    }
+  }
+  return -1;
+}
+/* How a part should be broken into its individual boards for the 3D view.
+   Two different constructions:
+     - a glue-up stacks boards through the THICKNESS  -> lam boards on lamAxis
+     - a glued panel joints boards across the WIDTH   -> glued.boards on axis 1
+   Returns null for anything cut from a single board, or a sheet. */
+function lamSplit(p){
+  if(p.kind === 'panel') return null;
+  if(p.glued && p.glued.boards > 1) return { axis:1, n:p.glued.boards };
+  var a = lamAxis(p);
+  return (a < 0) ? null : { axis:a, n:p.lam };
+}
+
+/* world direction of that stacking axis, after the part's own rotation */
+function lamDir(p, axis){
+  var c=Math.cos(p.rot), s=Math.sin(p.rot);
+  if(axis === 0) return [1,0,0];
+  if(axis === 1) return [0, c, s];
+  return [0, -s, c];
+}
+
+/* `sub` = {axis, i, n, gap} carves out one board of a glue-up; null gives the
+   whole assembled member. The bevel term stays intact, so each board in a
+   raked leg gets its own correctly-angled tip. */
+function partCornersSub(p, sub){
+  var hx=p.size[0]/2, hy=p.size[1]/2, hl=p.size[2]/2, ox=0, oy=0, oz=0;
+  if(sub){
+    var full = p.size[sub.axis], step = full/sub.n;
+    var half = step/2 - (sub.gap||0)/2, cen = -full/2 + (sub.i+0.5)*step;
+    if(sub.axis === 0){ hx=half; ox=cen; }
+    else if(sub.axis === 1){ hy=half; oy=cen; }
+    else { hl=half; oz=cen; }
+  }
+  var t1=Math.tan(p.cut1||0), t2=Math.tan(p.cut2||0);
+  var c=Math.cos(p.rot), s=Math.sin(p.rot), out=[];
+  for(var ix=0; ix<2; ix++) for(var iy=0; iy<2; iy++) for(var ie=0; ie<2; ie++){
+    var x=ox+(ix?1:-1)*hx, y=oy+(iy?1:-1)*hy;
+    var z = oz + (ie ? ( hl + y*t2) : (-hl + y*t1));
+    out.push([ p.pos[0]+x, p.pos[1] + y*c - z*s, p.pos[2] + y*s + z*c ]);
+  }
+  return out;
+}
+function partCorners(p){ return partCornersSub(p, null); }
+/* the YZ cross-section, which the bevel turns from a rectangle into a
+   trapezoid — corners 0,1,3,2 in order round the section */
+function partSection(p){
+  var C = partCorners(p);
+  return [[C[0][1],C[0][2]],[C[1][1],C[1][2]],[C[3][1],C[3][2]],[C[2][1],C[2][2]]];
+}
+var PFACES = [
+  [4,6,7,5],   /* +X */
+  [0,1,3,2],   /* -X */
+  [2,3,7,6],   /* +Y */
+  [0,4,5,1],   /* -Y */
+  [1,5,7,3],   /* far end  */
+  [0,2,6,4]    /* near end */
+];
+
+/* unit cube faces: 4 corners + outward normal */
+var CUBE = [
+  {n:[ 1,0,0], v:[[ 1,-1,-1],[ 1, 1,-1],[ 1, 1, 1],[ 1,-1, 1]]},
+  {n:[-1,0,0], v:[[-1, 1,-1],[-1,-1,-1],[-1,-1, 1],[-1, 1, 1]]},
+  {n:[0, 1,0], v:[[ 1, 1,-1],[-1, 1,-1],[-1, 1, 1],[ 1, 1, 1]]},
+  {n:[0,-1,0], v:[[-1,-1,-1],[ 1,-1,-1],[ 1,-1, 1],[-1,-1, 1]]},
+  {n:[0,0, 1], v:[[-1,-1, 1],[ 1,-1, 1],[ 1, 1, 1],[-1, 1, 1]]},
+  {n:[0,0,-1], v:[[-1, 1,-1],[ 1, 1,-1],[ 1,-1,-1],[-1,-1,-1]]}
+];
+var EDGEPAIRS = [[0,1],[1,2],[2,3],[3,0]];
+
+function rotX(p,c,s){ return [p[0], p[1]*c-p[2]*s, p[1]*s+p[2]*c]; }
+
+var GROUPRANGE = {}, TRICOUNT = 0, EDGECOUNT = 0, FOOT = null, BBOX = null;
+
+function buildBuffers(parts){
+  /* sort by group so each group is a contiguous range we can draw separately */
+  var order = ['post','rail','arm','slat','panel','back','head'];
+  var sorted = parts.slice().sort(function(a,b){
+    return (order.indexOf(a.group)+1 || 99) - (order.indexOf(b.group)+1 || 99);
+  });
+
+  var tri=[], edge=[], ranges={}, x0=1e9,y0=1e9,x1=-1e9,y1=-1e9;
+  sorted.forEach(function(p){
+    var start = tri.length/12;
+    var base = (SEL_KEY && partKey(p) === SEL_KEY) ? [0.36,0.78,0.98]
+             : p.clash ? [0.86,0.30,0.26]
+             : (COLOR[p.group] || [0.69,0.51,0.29]);
+
+    /* A glue-up is drawn as its individual boards with a hairline between
+       them, so a 4-board post reads as four boards rather than one solid
+       lump. Purely a view of the same part — the parts array, the cut list
+       and the nesting are untouched. */
+    var sp   = showLams ? lamSplit(p) : null;
+    var ax   = sp ? sp.axis : -1;
+    var nSub = sp ? sp.n : 1;
+    var dir  = sp ? lamDir(p, ax) : [0,0,0];
+
+    for(var li=0; li<nSub; li++){
+      var C = (ax >= 0)
+        ? partCornersSub(p, { axis:ax, i:li, n:nSub, gap:LAM_GAP })
+        : partCorners(p);
+      C.forEach(function(q){
+        if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0];
+        if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1];
+      });
+      /* alternate boards a shade apart so the lamination reads even head-on */
+      var tint = (ax >= 0 && li%2) ? 0.90 : 1;
+      var col = [base[0]*tint, base[1]*tint, base[2]*tint];
+      /* in the exploded view the boards fan out along the glue line too */
+      var spread = (ax >= 0) ? (li - (nSub-1)/2) * LAM_SPREAD : 0;
+      var ex = [ p.ex[0] + dir[0]*spread,
+                 p.ex[1] + dir[1]*spread,
+                 p.ex[2] + dir[2]*spread ];
+
+      PFACES.forEach(function(F){
+        var w = [C[F[0]], C[F[1]], C[F[2]], C[F[3]]];
+        /* normal from the actual corners — a bevelled end face is no longer
+           perpendicular to the axis, so a canned normal would light it wrong */
+        var u = [w[1][0]-w[0][0], w[1][1]-w[0][1], w[1][2]-w[0][2]];
+        var v = [w[2][0]-w[0][0], w[2][1]-w[0][1], w[2][2]-w[0][2]];
+        var n = nrm(vcross(u,v));
+        [0,1,2, 0,2,3].forEach(function(i){
+          tri.push(w[i][0],w[i][1],w[i][2], n[0],n[1],n[2],
+                   ex[0],ex[1],ex[2], col[0],col[1],col[2]);
+        });
+        EDGEPAIRS.forEach(function(e){
+          [e[0],e[1]].forEach(function(i){
+            edge.push(w[i][0],w[i][1],w[i][2], 0,0,1,
+                      ex[0],ex[1],ex[2], 0.16,0.11,0.06);
+          });
+        });
+      });
+    }
+    var g = p.group;
+    if(!ranges[g]) ranges[g] = { start:start, count:0 };
+    ranges[g].count += (tri.length/12 - start);
+  });
+
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.tri);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(tri), gl.STATIC_DRAW);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.edge);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(edge), gl.STATIC_DRAW);
+  TRICOUNT = tri.length/12; EDGECOUNT = edge.length/12;
+  GROUPRANGE = ranges;
+  FOOT = { cen:[(x0+x1)/2, (y0+y1)/2], half:[(x1-x0)/2, (y1-y0)/2] };
+
+  /* full 3D extent, so the camera frames the real object rather than
+     guessing from whichever parameter happens to be called "L" */
+  var z0=1e9, z1=-1e9;
+  sorted.forEach(function(p){
+    partCorners(p).forEach(function(q){
+      if(q[2]<z0) z0=q[2]; if(q[2]>z1) z1=q[2];
+    });
+  });
+  BBOX = { cen:[(x0+x1)/2,(y0+y1)/2,(z0+z1)/2],
+           size:[x1-x0, y1-y0, z1-z0],
+           radius: Math.hypot(x1-x0, y1-y0, z1-z0)/2 };
+
+  var m = Math.max(x1-x0, y1-y0)*1.6 + 1200;
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.floor);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([
+    -m,-m,  m,-m,  m,m,  -m,-m,  m,m,  -m,m ]), gl.STATIC_DRAW);
+}
+
+var GRIDCOUNT = 0;
+function buildGrid(){
+  var N=3600, step=200, g, v=[];
+  for(g=-N; g<=N; g+=step){
+    var major = (g % 1000 === 0);
+    var c = major ? [0.30,0.35,0.41] : [0.20,0.235,0.28];
+    v.push(-N,g,0, 0,0,1, 0,0,0, c[0],c[1],c[2]);
+    v.push( N,g,0, 0,0,1, 0,0,0, c[0],c[1],c[2]);
+    v.push(g,-N,0, 0,0,1, 0,0,0, c[0],c[1],c[2]);
+    v.push(g, N,0, 0,0,1, 0,0,0, c[0],c[1],c[2]);
+  }
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.grid);
+  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array(v), gl.STATIC_DRAW);
+  GRIDCOUNT = v.length/12;
+}
+
+function bindMain(){
+  var S = 12*4;
+  gl.vertexAttribPointer(LOC.aPos, 3, gl.FLOAT, false, S, 0);
+  gl.vertexAttribPointer(LOC.aNorm,3, gl.FLOAT, false, S, 12);
+  gl.vertexAttribPointer(LOC.aEx,  3, gl.FLOAT, false, S, 24);
+  gl.vertexAttribPointer(LOC.aCol, 3, gl.FLOAT, false, S, 36);
+  [LOC.aPos,LOC.aNorm,LOC.aEx,LOC.aCol].forEach(function(a){ gl.enableVertexAttribArray(a); });
+}
+
+var az=-0.75, el=0.42, dist=3600, target=[0,0,340], explode=0, isoGroup=null;
+var showEdges=true, showGrid=true, showLams=true;
+var SEL_KEY=null;      /* selection is by part TYPE, so all four legs light up */
+function partKey(p){ return p.name+'|'+Math.round(p.cut)+'|'+p.sec+'|'+endKey(p); }
+var LAM_GAP = 0.8;      /* mm of daylight drawn between glued boards */
+var LAM_SPREAD = 0.22;  /* how far they fan apart per mm of explode */
+
+function camPos(){
+  return [ target[0]+dist*Math.cos(el)*Math.cos(az),
+           target[1]+dist*Math.cos(el)*Math.sin(az),
+           target[2]+dist*Math.sin(el) ];
+}
+
+/* Where a part is actually DRAWN — explode moves it, so picking has to
+   follow it there rather than testing the un-exploded model. */
+function drawnPart(p){
+  if(!explode) return p;
+  return { size:p.size, rot:p.rot, cut1:p.cut1, cut2:p.cut2,
+           pos:[ p.pos[0]+p.ex[0]*explode,
+                 p.pos[1]+p.ex[1]*explode,
+                 p.pos[2]+p.ex[2]*explode ] };
+}
+/* Camera ray through a pixel, matching the perspective the shader uses. */
+function pickRay(clientX, clientY){
+  var rect = host.getBoundingClientRect();
+  var nx = (clientX-rect.left)/rect.width*2 - 1;
+  var ny = 1 - (clientY-rect.top)/rect.height*2;
+  var eye = camPos();
+  var f = nrm(vsub(target,eye)), r = nrm(vcross(f,[0,0,1])), u = vcross(r,f);
+  var th = Math.tan(0.52/2), aspect = rect.width/rect.height;
+  var d = nrm([ f[0] + r[0]*nx*th*aspect + u[0]*ny*th,
+                f[1] + r[1]*nx*th*aspect + u[1]*ny*th,
+                f[2] + r[2]*nx*th*aspect + u[2]*ny*th ]);
+  return { o:eye, d:d };
+}
+function pickAt(clientX, clientY){
+  if(!MODEL) return null;
+  var ray = pickRay(clientX, clientY), best = null, bestT = Infinity;
+  MODEL.parts.forEach(function(p, i){
+    if(p.bom === false) return;
+    var t = rayEnter(partPlanes(drawnPart(p)), ray.o, ray.d);
+    if(t !== null && t < bestT){ bestT = t; best = i; }
+  });
+  return best;
+}
+
+function draw(){
+  if(!gl || !MODEL) return;
+  var dpr = Math.min(window.devicePixelRatio||1, 2);
+  var r = host.getBoundingClientRect();
+  var W = Math.max(1, Math.round(r.width)), H = Math.max(1, Math.round(r.height));
+  if(cv.width !== W*dpr || cv.height !== H*dpr){ cv.width=W*dpr; cv.height=H*dpr; }
+  gl.viewport(0,0,cv.width,cv.height);
+  gl.clearColor(0.078,0.090,0.106,1);
+  gl.depthMask(true);
+  gl.clear(gl.COLOR_BUFFER_BIT | gl.DEPTH_BUFFER_BIT);
+
+  var proj = m4persp(0.52, W/H, 40, 40000);
+  var view = m4look(camPos(), target, [0,0,1]);
+  var mvp  = m4mul(view, proj);
+
+  /* grid — depth-tested, so the furniture occludes it properly */
+  gl.useProgram(PROG);
+  gl.uniformMatrix4fv(LOC.uMVP, false, mvp);
+  gl.uniform3fv(LOC.uKey,  nrm([0.42,-0.66,0.62]));
+  gl.uniform3fv(LOC.uFill, nrm([-0.55,0.35,0.30]));
+  gl.uniform1f(LOC.uExplode, explode);
+
+  if(showGrid){
+    gl.bindBuffer(gl.ARRAY_BUFFER, BUF.grid); bindMain();
+    gl.uniform1f(LOC.uFlat, 1); gl.uniform1f(LOC.uAlpha, 1); gl.uniform1f(LOC.uBias, 0);
+    gl.drawArrays(gl.LINES, 0, GRIDCOUNT);
+  }
+
+  /* contact shadow on the floor */
+  if(FOOT){
+    gl.useProgram(FPROG);
+    gl.uniformMatrix4fv(FLOC.uMVP, false, mvp);
+    gl.uniform2fv(FLOC.uCen, new Float32Array(FOOT.cen));
+    gl.uniform2fv(FLOC.uHalf, new Float32Array(FOOT.half));
+    gl.uniform1f(FLOC.uSoft, 300);
+    gl.bindBuffer(gl.ARRAY_BUFFER, BUF.floor);
+    gl.vertexAttribPointer(FLOC.aXY, 2, gl.FLOAT, false, 8, 0);
+    gl.enableVertexAttribArray(FLOC.aXY);
+    gl.enable(gl.BLEND); gl.depthMask(false);
+    gl.drawArrays(gl.TRIANGLES, 0, 6);
+    gl.depthMask(true); gl.disable(gl.BLEND);
+    gl.disableVertexAttribArray(FLOC.aXY);
+  }
+
+  gl.useProgram(PROG);
+  gl.uniformMatrix4fv(LOC.uMVP, false, mvp);
+  gl.uniform1f(LOC.uExplode, explode);
+  gl.bindBuffer(gl.ARRAY_BUFFER, BUF.tri); bindMain();
+  gl.uniform1f(LOC.uFlat, 0); gl.uniform1f(LOC.uBias, 0);
+
+  if(isoGroup && GROUPRANGE[isoGroup]){
+    /* ghosted context first, no depth write, then the isolated area solid */
+    gl.enable(gl.BLEND); gl.depthMask(false);
+    gl.uniform1f(LOC.uAlpha, 0.10);
+    Object.keys(GROUPRANGE).forEach(function(g){
+      if(g === isoGroup) return;
+      var R = GROUPRANGE[g];
+      gl.drawArrays(gl.TRIANGLES, R.start, R.count);
+    });
+    gl.depthMask(true); gl.disable(gl.BLEND);
+    gl.uniform1f(LOC.uAlpha, 1);
+    var R2 = GROUPRANGE[isoGroup];
+    gl.drawArrays(gl.TRIANGLES, R2.start, R2.count);
+  } else {
+    gl.uniform1f(LOC.uAlpha, 1);
+    gl.drawArrays(gl.TRIANGLES, 0, TRICOUNT);
+  }
+
+  if(showEdges){
+    gl.bindBuffer(gl.ARRAY_BUFFER, BUF.edge); bindMain();
+    gl.uniform1f(LOC.uFlat, 1); gl.uniform1f(LOC.uAlpha, 1);
+    gl.uniform1f(LOC.uBias, 0.00018);   /* pull lines toward the eye a hair */
+    gl.drawArrays(gl.LINES, 0, EDGECOUNT);
+    gl.uniform1f(LOC.uBias, 0);
+  }
+}
+
+/* =========================================================================
+   §4  viewers/svg-drawing.js — orthographic front / end / top
+   ========================================================================= */
+
+function hull(pts){
+  pts = pts.slice().sort(function(a,b){ return a[0]-b[0] || a[1]-b[1]; });
+  function cr(o,a,b){ return (a[0]-o[0])*(b[1]-o[1])-(a[1]-o[1])*(b[0]-o[0]); }
+  var lo=[], up=[], i;
+  for(i=0;i<pts.length;i++){
+    while(lo.length>=2 && cr(lo[lo.length-2],lo[lo.length-1],pts[i])<=0) lo.pop();
+    lo.push(pts[i]);
+  }
+  for(i=pts.length-1;i>=0;i--){
+    while(up.length>=2 && cr(up[up.length-2],up[up.length-1],pts[i])<=0) up.pop();
+    up.push(pts[i]);
+  }
+  lo.pop(); up.pop();
+  return lo.concat(up);
+}
+function corners(p){ return partCorners(p); }
+/* ---- projections and hidden-surface removal -----------------------------
+   Each view supplies: w   the direction from the scene toward the camera
+                       f   world point -> screen (u,v)
+                       un  screen (u,v) -> some point on that view ray
+   ------------------------------------------------------------------------ */
+var ISO_C = Math.cos(Math.PI/6), ISO_S = Math.sin(Math.PI/6);
+function isoProject(v){ return [ (v[0]-v[1])*ISO_C, (v[0]+v[1])*ISO_S - v[2] ]; }
+function isoUnproject(u, v){
+  var z = -v/(ISO_S+1), sum = -z, diff = u/ISO_C;
+  return [ (sum+diff)/2, (sum-diff)/2, z ];      /* has depth x+y+z = 0 */
+}
+
+var VIEWS = {
+  front:{ label:'FRONT', w:[0,1,0], f:function(v){ return [-v[0], -v[2]]; },
+          un:function(u,v){ return [-u, 0, -v]; } },
+  end:  { label:'END',   w:[1,0,0], f:function(v){ return [ v[1], -v[2]]; },
+          un:function(u,v){ return [0, u, -v]; } },
+  top:  { label:'TOP',   w:[0,0,1], f:function(v){ return [ v[0], -v[1]]; },
+          un:function(u,v){ return [u, -v, 0]; } },
+  iso:  { label:'ISOMETRIC', w:nrm([1,1,1]), f:isoProject, un:isoUnproject, shaded:true }
+};
+
+/* the six outward half-spaces of a part: inside is n·x <= d */
+function partPlanes(p){
+  var C = partCorners(p), out = [];
+  PFACES.forEach(function(F){
+    var a=C[F[0]], b=C[F[1]], c=C[F[2]];
+    var n = nrm(vcross(vsub(b,a), vsub(c,a)));
+    out.push({ n:n, d: vdot(n,a) });
+  });
+  return out;
+}
+/* where a ray leaves the solid travelling toward the camera — that is the
+   surface the camera sees. Larger tOut means nearer the camera. */
+function rayExit(planes, o, dir){
+  var tIn=-Infinity, tOut=Infinity;
+  for(var i=0;i<planes.length;i++){
+    var den = vdot(planes[i].n, dir);
+    var num = planes[i].d - vdot(planes[i].n, o);
+    if(Math.abs(den) < 1e-9){ if(num < -1e-6) return null; continue; }
+    var t = num/den;
+    if(den < 0){ if(t > tIn)  tIn  = t; }
+    else       { if(t < tOut) tOut = t; }
+  }
+  return (tIn <= tOut + 1e-9) ? tOut : null;
+}
+function polyCCW(poly){
+  var A=0;
+  for(var i=0;i<poly.length;i++){
+    var a=poly[i], b=poly[(i+1)%poly.length];
+    A += a[0]*b[1] - b[0]*a[1];
+  }
+  return A < 0 ? poly.slice().reverse() : poly;
+}
+/* Sutherland–Hodgman. Both silhouettes are convex, so this is exact — and it
+   replaces guessing at a shared point by grid sampling, which in isometric
+   missed constantly because the silhouettes are hexagonal and diagonal while
+   the sample grid was axis-aligned. A missed sample meant a DROPPED ordering
+   constraint, which is what left long slats sitting on top of short rails. */
+function clipConvex(subject, clip){
+  var out = subject.slice();
+  clip = polyCCW(clip);
+  for(var i=0; i<clip.length && out.length; i++){
+    var a = clip[i], b = clip[(i+1)%clip.length], inp = out;
+    out = [];
+    for(var j=0;j<inp.length;j++){
+      var P = inp[j], Q = inp[(j+1)%inp.length];
+      var sp = (b[0]-a[0])*(P[1]-a[1]) - (b[1]-a[1])*(P[0]-a[0]);
+      var sq = (b[0]-a[0])*(Q[1]-a[1]) - (b[1]-a[1])*(Q[0]-a[0]);
+      if(sp >= 0) out.push(P);
+      if((sp > 0 && sq < 0) || (sp < 0 && sq > 0)){
+        var t = sp/(sp-sq);
+        out.push([P[0]+t*(Q[0]-P[0]), P[1]+t*(Q[1]-P[1])]);
+      }
+    }
+  }
+  return out;
+}
+
+/* Nearest entry point along a ray, or null. Picking needs the face the
+   camera reaches FIRST, where hidden-surface ordering wanted the last. */
+function rayEnter(planes, o, dir){
+  var tIn=-Infinity, tOut=Infinity;
+  for(var i=0;i<planes.length;i++){
+    var den = vdot(planes[i].n, dir);
+    var num = planes[i].d - vdot(planes[i].n, o);
+    if(Math.abs(den) < 1e-9){ if(num < -1e-6) return null; continue; }
+    var t = num/den;
+    if(den < 0){ if(t > tIn)  tIn  = t; }
+    else       { if(t < tOut) tOut = t; }
+  }
+  return (tIn <= tOut + 1e-9 && tOut > 0) ? Math.max(tIn, 0) : null;
+}
+
+function pointInPoly(q, poly){
+  var inside = false;
+  for(var i=0, j=poly.length-1; i<poly.length; j=i++){
+    var a=poly[i], b=poly[j];
+    if(((a[1]>q[1]) !== (b[1]>q[1])) &&
+       (q[0] < (b[0]-a[0])*(q[1]-a[1])/(b[1]-a[1]) + a[0])) inside = !inside;
+  }
+  return inside;
+}
+
+/* Correct back-to-front order for CONVEX, NON-INTERPENETRATING solids.
+   The old code sorted individual faces by centroid depth. That is a painter's
+   algorithm, and it breaks precisely where a long part meets short ones: an
+   1840 mm slat gets ONE depth for a face spanning the whole bench, so parts
+   locally in front of one end of it sort behind the whole thing.
+   Instead: order at the PART level, deciding each overlapping pair by casting
+   a ray through a point their silhouettes share and asking which solid the
+   camera actually reaches first. Within a part, order never matters — a convex
+   solid's camera-facing faces cannot overlap each other on screen. */
+function orderParts(parts, view){
+  var info = parts.map(function(p){
+    var scr = partCorners(p).map(view.f);
+    var h = scr.length >= 3 ? hull(scr) : scr;
+    if(h.length < 3) h = scr;
+    h = polyCCW(h);
+    var x0=1e9,y0=1e9,x1=-1e9,y1=-1e9, d=0;
+    scr.forEach(function(q){
+      if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0];
+      if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1];
+    });
+    partCorners(p).forEach(function(c){ d += vdot(c, view.w)/8; });
+    return { p:p, poly:h, x0:x0, y0:y0, x1:x1, y1:y1,
+             planes:partPlanes(p), depth:d };
+  });
+
+  var n = info.length;
+  var after = [], indeg = new Array(n).fill(0);
+  for(var i=0;i<n;i++) after.push([]);
+
+  for(i=0;i<n;i++) for(var j=i+1;j<n;j++){
+    var A=info[i], B=info[j];
+    if(A.x1 <= B.x0 || B.x1 <= A.x0 || A.y1 <= B.y0 || B.y1 <= A.y0) continue;
+
+    /* the exact region the two silhouettes share, and its centroid */
+    var lap = clipConvex(A.poly, B.poly);
+    if(lap.length < 3) continue;                 /* touching only, no overlap */
+    var q = [0,0];
+    lap.forEach(function(c){ q[0]+=c[0]/lap.length; q[1]+=c[1]/lap.length; });
+
+    var o = view.un(q[0], q[1]);
+    var ta = rayExit(A.planes, o, view.w), tb = rayExit(B.planes, o, view.w);
+    if(ta === null || tb === null) continue;
+    if(Math.abs(ta-tb) < 1e-6) continue;
+    /* larger exit t = nearer the camera = drawn later */
+    if(ta > tb){ after[j].push(i); indeg[i]++; }   /* B behind A */
+    else       { after[i].push(j); indeg[j]++; }
+  }
+
+  /* Kahn, breaking ties by depth so equal-rank parts still read sensibly */
+  var ready = [], order = [], seen = new Array(n).fill(false);
+  for(i=0;i<n;i++) if(!indeg[i]) ready.push(i);
+  while(order.length < n){
+    if(!ready.length){
+      /* a cycle — no valid order exists for this pair set. Emit the deepest
+         remaining part and carry on rather than dropping geometry. */
+      var best=-1;
+      for(i=0;i<n;i++) if(!seen[i] && (best<0 || info[i].depth < info[best].depth)) best=i;
+      ready.push(best); indeg[best]=0;
+    }
+    ready.sort(function(a,b){ return info[a].depth - info[b].depth; });
+    var k = ready.shift();
+    if(seen[k]) continue;
+    seen[k] = true; order.push(k);
+    after[k].forEach(function(m){ if(--indeg[m] === 0 && !seen[m]) ready.push(m); });
+  }
+  return order.map(function(k){ return info[k]; });
+}
+
+/* Build one solid, hidden-line-removed view. Used for all four views, so the
+   elevations and the isometric are produced by exactly the same code. */
+function solidView(parts, view){
+  var ordered = orderParts(parts, view);
+  var polys = [], x0=1e9, y0=1e9, x1=-1e9, y1=-1e9;
+  ordered.forEach(function(inf){
+    var p = inf.p, C = partCorners(p);
+    PFACES.forEach(function(F){
+      var w = [C[F[0]], C[F[1]], C[F[2]], C[F[3]]];
+      var u = vsub(w[1], w[0]), v = vsub(w[2], w[0]);
+      var nf = vcross(u, v);
+      if(vdot(nf, view.w) <= 1e-9) return;               /* facing away */
+      var nn = nrm(nf);
+      var pts = w.map(view.f);
+      pts.forEach(function(q){
+        if(q[0]<x0)x0=q[0]; if(q[0]>x1)x1=q[0];
+        if(q[1]<y0)y0=q[1]; if(q[1]>y1)y1=q[1];
+      });
+      polys.push({ pts:pts, shade: view.shaded ? (0.80 + 0.20*Math.max(0,nn[2])) : 1 });
+    });
+  });
+  return { polys:polys, w:x1-x0, h:y1-y0, x0:x0, y0:y0, label:view.label };
+}
+
+/* The flat pattern of a single part: a rectangle cut x width, with each end
+   raked by its bevel. This is the shape you mark out on the board. */
+function partOutline(p){
+  if(p.kind === 'panel'){
+    return { poly:[[0,0],[p.panel.L,0],[p.panel.L,p.panel.W],[0,p.panel.W]],
+             L:p.panel.L, W:p.panel.W };
+  }
+  var W = p.section[1], hw = W/2;
+  var t1 = Math.tan(p.cut1||0), t2 = Math.tan(p.cut2||0);
+  var axis = (p.cut1||p.cut2) ? p.size[2] : p.cut;
+  var hl = axis/2;
+  var pts = [[-hw, -hl - hw*t1], [-hw, hl - hw*t2],
+             [ hw,  hl + hw*t2], [ hw, -hl + hw*t1]];
+  var minz = Math.min.apply(null, pts.map(function(q){ return q[1]; }));
+  return { poly: pts.map(function(q){ return [q[1]-minz, q[0]+hw]; }),
+           L: p.cut, W: W };
+}
+
+/* one row per distinct plank — same grouping the cut list uses */
+function distinctParts(model){
+  var map = {};
+  model.parts.filter(function(p){ return p.bom !== false; }).forEach(function(p){
+    var k = p.name+'|'+Math.round(p.cut)+'|'+p.sec+'|'+endKey(p);
+    if(!map[k]) map[k] = { p:p, qty:0 };
+    map[k].qty += (p.count||1);
+  });
+  return Object.keys(map).map(function(k){ return map[k]; })
+             .sort(function(a,b){ return b.p.cut - a.p.cut; });
+}
+
+function svgDrawing(model, opts){
+  var parts = model.parts.filter(function(p){ return p.bom !== false; });
+  var PAD = 40, PAGE = 1180, INK = '#2b2721', THIN = '#9a9084', FAINT = '#ddd6c8';
+  var s = [], y = 0;
+
+  function esc(t){ return String(t).replace(/&/g,'&amp;').replace(/</g,'&lt;'); }
+  function txt(x,yy,t,anchor,fill,size){
+    s.push('<text x="'+x.toFixed(1)+'" y="'+yy.toFixed(1)+'" text-anchor="'+(anchor||'start')+
+           '" fill="'+(fill||THIN)+'" font-size="'+(size||10)+'">'+esc(t)+'</text>');
+  }
+  function dimH(x1,x2,yy,label){
+    s.push('<line x1="'+x1.toFixed(1)+'" y1="'+yy+'" x2="'+x2.toFixed(1)+'" y2="'+yy+
+           '" stroke="'+THIN+'" stroke-width="0.6"/>');
+    [x1,x2].forEach(function(x){
+      s.push('<line x1="'+x.toFixed(1)+'" y1="'+(yy-3)+'" x2="'+x.toFixed(1)+'" y2="'+(yy+3)+
+             '" stroke="'+THIN+'" stroke-width="0.6"/>');
+    });
+    txt((x1+x2)/2, yy-4, label, 'middle');
+  }
+  function dimV(x,y1,y2,label){
+    s.push('<line x1="'+x+'" y1="'+y1.toFixed(1)+'" x2="'+x+'" y2="'+y2.toFixed(1)+
+           '" stroke="'+THIN+'" stroke-width="0.6"/>');
+    [y1,y2].forEach(function(yy){
+      s.push('<line x1="'+(x-3)+'" y1="'+yy.toFixed(1)+'" x2="'+(x+3)+'" y2="'+yy.toFixed(1)+
+             '" stroke="'+THIN+'" stroke-width="0.6"/>');
+    });
+    s.push('<text x="'+(x-5)+'" y="'+((y1+y2)/2).toFixed(1)+'" text-anchor="middle" fill="'+THIN+
+           '" font-size="10" transform="rotate(-90 '+(x-5)+' '+((y1+y2)/2).toFixed(1)+')">'+
+           esc(label)+'</text>');
+  }
+
+  /* ---------- block A: three elevations + isometric ----------
+     All four come from solidView(), so hidden lines are removed the same way
+     in every one. Elevations are flat-filled (drafting convention); only the
+     isometric is shaded, so it reads as a solid. */
+  var views = ['front','end','top','iso'].map(function(k){
+    var v = solidView(parts, VIEWS[k]);
+    v.kind = (k === 'iso') ? 'iso' : 'ortho';
+    return v;
+  });
+
+  /* The three elevations share one scale so they can be read against each
+     other. The isometric's projected box is far taller, so giving it the same
+     scale would shrink the elevations to nothing — it gets its own, which is
+     ordinary drafting practice, and both scales are printed in the title. */
+  var orth = views.slice(0,3);
+  var orthH = Math.max.apply(null, orth.map(function(v){ return v.h; }));
+  var orthW = orth.reduce(function(a,v){ return a+v.w; }, 0);
+  var iso   = views[3];
+  var BAND  = 300;
+  var isoBudget = 300;
+  var scale = Math.min(1, (PAGE - PAD*5 - isoBudget)/orthW, BAND/orthH);
+  var isoScale = Math.min(scale, BAND/Math.max(iso.h,1), isoBudget/Math.max(iso.w,1));
+  var maxH = Math.max(orthH*scale, iso.h*isoScale)/scale;
+  var bandPx = Math.max(orthH*scale, iso.h*isoScale);
+  var blockH = bandPx + 74;
+
+  s.push('<g font-family="ui-monospace,Menlo,monospace" font-size="10">');
+  txt(PAD, 24, 'ASSEMBLY', 'start', '#6b6355', 11);
+  var cx = PAD;
+  views.forEach(function(v){
+    var sc = (v.kind === 'iso') ? isoScale : scale;
+    var ox = cx - v.x0*sc, oy = 46 + (bandPx - v.h*sc)/2 - v.y0*sc;
+    v.polys.forEach(function(f){
+      var g = Math.round(252*f.shade);
+      s.push('<polygon points="'+f.pts.map(function(q){
+        return (ox+q[0]*sc).toFixed(1)+','+(oy+q[1]*sc).toFixed(1); }).join(' ')+
+        '" fill="rgb('+g+','+(g-3)+','+(g-10)+')" stroke="'+INK+'" stroke-width="0.6"/>');
+    });
+    if(v.kind === 'ortho'){
+      var by = 46 + bandPx + 16;
+      dimH(cx, cx + v.w*sc, by, String(Math.round(v.w)));
+      txt(cx, 40, v.label + '   h ' + Math.round(v.h), 'start', '#6b6355', 10);
+    } else {
+      txt(cx, 40, v.label + '   1:' + Math.round(1/sc), 'start', '#6b6355', 10);
+    }
+    cx += v.w*sc + PAD;
+  });
+  y = blockH + 20;
+
+  /* ---------- block B: one dimensioned drawing per plank ---------- */
+  var rows = distinctParts(model);
+  var CW = 272, CH = 158, per = Math.max(1, Math.floor((PAGE - PAD*2)/CW));
+
+  s.push('<line x1="'+PAD+'" y1="'+y+'" x2="'+(PAGE-PAD)+'" y2="'+y+
+         '" stroke="'+FAINT+'" stroke-width="1"/>');
+  y += 20;
+  txt(PAD, y, 'PLANKS — '+rows.length+' distinct. Counts are BOARDS to cut; a glue-up '+
+      'needs several per assembled member. Part views are not to a common scale.',
+      'start', '#6b6355', 11);
+  y += 16;
+
+  rows.forEach(function(row, i){
+    var p = row.p, o = partOutline(p);
+    var col = i % per, rw = Math.floor(i/per);
+    var cxx = PAD + col*CW, cyy = y + rw*CH;
+    var boxW = CW - 46, boxH = 62;
+    var sc = Math.min(boxW/Math.max(o.L,1), boxH/Math.max(o.W,1));
+    var dx = cxx + 16, dy = cyy + 46;
+
+    /* the flat pattern is ONE board, so the count here is boards to cut —
+       not the number of assembled members, which is what the cut list Qty
+       column shows */
+    var boards = row.qty * (p.kind === 'panel' ? 1 : p.lam);
+    txt(cxx, cyy + 12, '×'+boards+'   '+p.name, 'start', INK, 11);
+    txt(cxx, cyy + 24, p.kind === 'panel'
+        ? (p.panel.t+' mm sheet')
+        : (p.sec + '   ends ' + endText(p)), 'start', THIN, 9.5);
+    if(p.lam > 1 && p.kind !== 'panel')
+      txt(cxx, cyy + 34, row.qty+' × '+p.lam+'-board glue-up', 'start', '#b3541e', 9);
+
+    s.push('<polygon points="'+o.poly.map(function(q){
+      return (dx+q[0]*sc).toFixed(1)+','+(dy+q[1]*sc).toFixed(1); }).join(' ')+
+      '" fill="#eae4d7" stroke="'+INK+'" stroke-width="0.8"/>');
+
+    /* grain / length direction */
+    s.push('<line x1="'+(dx+4).toFixed(1)+'" y1="'+(dy+o.W*sc/2).toFixed(1)+
+           '" x2="'+(dx+o.L*sc-4).toFixed(1)+'" y2="'+(dy+o.W*sc/2).toFixed(1)+
+           '" stroke="'+FAINT+'" stroke-width="0.5" stroke-dasharray="3 3"/>');
+
+    dimH(dx, dx + o.L*sc, dy + o.W*sc + 16, Math.round(o.L)+' mm');
+    dimV(dx - 8, dy, dy + o.W*sc, Math.round(o.W)+'');
+
+    /* call out the raked tips */
+    if(p.cut1) txt(dx + 2, dy - 5, Math.abs(deg(p.cut1))+'°', 'start', '#b3541e', 9.5);
+    if(p.cut2) txt(dx + o.L*sc - 2, dy - 5, Math.abs(deg(p.cut2))+'°', 'end', '#b3541e', 9.5);
+  });
+  y += Math.ceil(rows.length/per)*CH + 10;
+
+  /* ---------- title block ---------- */
+  s.push('<line x1="'+PAD+'" y1="'+y+'" x2="'+(PAGE-PAD)+'" y2="'+y+
+         '" stroke="'+FAINT+'" stroke-width="1"/>');
+  txt(PAD, y+16, opts.title||'', 'start', INK, 10);
+  txt(PAGE-PAD, y+16, (opts.stock||'')+'   elevations 1:'+Math.round(1/scale)+
+      '   iso 1:'+Math.round(1/isoScale)+'   mm', 'end', THIN, 10);
+  y += 30;
+
+  s.push('</g>');
+  return '<svg xmlns="http://www.w3.org/2000/svg" width="'+PAGE+'" height="'+Math.round(y)+
+         '" viewBox="0 0 '+PAGE+' '+Math.round(y)+'">'+
+         '<rect width="'+PAGE+'" height="'+Math.round(y)+'" fill="#f4f1ea"/>'+
+         s.join('')+'</svg>';
+}
+
+/* =========================================================================
+   §5  outputs/ — schedule (with report modes), nesting, exporters
+   -------------------------------------------------------------------------
+   The report modes come straight from Woodworking's getKey(): sort the three
+   dimensions, then compose the key with label and/or group depending on the
+   view you want. One scan, several schedules.
+   ========================================================================= */
+
+function deg(r){ return Math.round((r||0)*180/Math.PI*10)/10; }
+function endKey(p){ return deg(p.cut1)+'/'+deg(p.cut2); }
+function endText(p){
+  var a=deg(p.cut1), b=deg(p.cut2);
+  if(!a && !b) return 'square';
+  return (a?Math.abs(a)+'°':'sq')+' / '+(b?Math.abs(b)+'°':'sq');
+}
+
+var REPORTS = {
+  name:    { label:'Name',           key:function(p){ return p.name+'|'+Math.round(p.cut)+'|'+p.sec+'|'+endKey(p); },
+             cols:['Part','Qty','Cut length','Ends','Section','Lam','Boards','Total','Mass'],
+             hint:'One row per named part at a given length — the build view.' },
+  group:   { label:'Area',           key:function(p){ return p.group+'|'+Math.round(p.cut)+'|'+p.sec+'|'+endKey(p); },
+             cols:['Area','Qty','Cut length','Ends','Section','Lam','Boards','Total','Mass'],
+             hint:'Collapsed by stock area — what to buy for each part of the piece.' },
+  dim:     { label:'Dimension only', key:function(p){ return Math.round(p.cut)+'|'+p.sec+'|'+endKey(p); },
+             cols:['Cut','Qty','Cut length','Ends','Section','Lam','Boards','Total','Mass'],
+             hint:'Identical cuts merged regardless of where they go — the saw view.' },
+  section: { label:'Section total',  key:function(p){ return p.sec; },
+             cols:['Section','Qty','—','Ends','Section','Lam','Boards','Total','Mass'],
+             hint:'One row per section — the timber-yard view.' }
+};
+
+function schedule(parts, mode, density){
+  var R = REPORTS[mode] || REPORTS.name;
+  var map = {};
+  parts.filter(function(p){ return p.bom !== false; }).forEach(function(p){
+    var k = R.key(p);
+    if(!map[k]) map[k] = { label:{name:p.name, group:p.group, dim:Math.round(p.cut)+' mm',
+                                  section:p.sec}[mode] || p.name,
+                           name:p.name, group:p.group, sec:p.sec, lam:p.lam,
+                           section:p.section, stock:p.stock, kind:p.kind,
+                           panel:p.panel, glued:p.glued, ends:endText(p),
+                           len:Math.round(p.cut), qty:0, mm:0 };
+    map[k].qty += (p.count||1);
+    map[k].mm  += p.cut * (p.count||1);
+    if(mode==='section' || mode==='dim'){ map[k].len = Math.round(p.cut); }
+  });
+  var rows = Object.keys(map).map(function(k){ return map[k]; })
+    .sort(function(a,b){ return b.len-a.len || String(a.label).localeCompare(String(b.label)); });
+
+  var boards=0, mm=0, kg=0, sheetArea=0;
+  rows.forEach(function(r){
+    if(r.kind === 'panel'){
+      r.boards  = 0;                       /* a sheet is not a board */
+      r.totalMM = r.mm;
+      r.area    = r.panel.L*r.panel.W*r.qty*1e-6;   /* m² */
+      r.kg      = (r.panel.L*r.panel.W*r.panel.t*r.qty) * 1e-9 * density;
+      r.dimsText = r.panel.L+' × '+r.panel.W;
+      sheetArea += r.area;
+    } else {
+      r.boards  = r.qty*r.lam;
+      r.totalMM = r.mm*r.lam;
+      r.kg      = (r.section[0]*r.section[1]*r.mm) * 1e-9 * density;
+      r.dimsText = String(r.len);
+      boards += r.boards; mm += r.totalMM;
+    }
+    kg += r.kg;
+  });
+  return { rows:rows, boards:boards, metres:mm/1000, kg:kg, sheetArea:sheetArea,
+           parts:rows.reduce(function(a,r){ return a+r.qty; },0), cols:R.cols, hint:R.hint };
+}
+
+/* nesting keys on the ACTUAL stock of each part, so per-area boards are
+   never mixed onto the same bar */
+function nest(parts, opts){
+  var bySec = {};
+  parts.filter(function(p){ return p.bom !== false && p.kind !== 'panel'; }).forEach(function(p){
+    var k = p.stock[0]+'×'+p.stock[1];
+    if(!bySec[k]) bySec[k] = { key:k, t:p.stock[0], w:p.stock[1], pieces:[] };
+    var reps = p.lam * (p.count||1);
+    for(var i=0;i<reps;i++) bySec[k].pieces.push({ len:Math.round(p.cut), name:p.name });
+  });
+  return Object.keys(bySec).map(function(k){
+    var G = bySec[k];
+    var pieces = G.pieces.slice().sort(function(a,b){ return b.len-a.len; });
+    var bins = [];
+    pieces.forEach(function(pc){
+      var need = pc.len + opts.kerf, placed=false;
+      for(var i=0;i<bins.length;i++){
+        if(bins[i].free >= need){ bins[i].free -= need; bins[i].cuts.push(pc); placed=true; break; }
+      }
+      if(!placed) bins.push({ free: opts.len - need, cuts:[pc] });
+    });
+    return { sec:G.key, t:G.t, w:G.w, bins:bins,
+             used: pieces.reduce(function(a,p){ return a+p.len; },0),
+             capacity: bins.length*opts.len,
+             over: pieces.filter(function(p){ return p.len + opts.kerf > opts.len; }) };
+  }).sort(function(a,b){ return b.bins.length - a.bins.length; });
+}
+
+/* outputs/nest-sheets.js — shelf packing for sheet goods. Rows of panels, each
+   row as tall as its tallest member. Not optimal, but it is a real layout with
+   a real offcut rather than an area estimate that hides the waste. */
+function nestSheets(parts, sheet){
+  var items = [];
+  parts.filter(function(p){ return p.bom !== false && p.kind === 'panel'; }).forEach(function(p){
+    for(var i=0;i<(p.count||1);i++) items.push({ w:p.panel.L, h:p.panel.W, name:p.name });
+  });
+  if(!items.length) return null;
+
+  var k = sheet.kerf || 3, sheets = [], over = [];
+  items.slice().sort(function(a,b){ return b.h-a.h; }).forEach(function(it){
+    if((it.w > sheet.L || it.h > sheet.W) && it.h <= sheet.L && it.w <= sheet.W){
+      var t = it.w; it.w = it.h; it.h = t;          /* try it rotated */
+    }
+    if(it.w > sheet.L || it.h > sheet.W){ over.push(it); return; }
+    var placed = false, si, sh;
+    for(si=0; si<sheets.length && !placed; si++){
+      var SH = sheets[si];
+      for(sh=0; sh<SH.rows.length && !placed; sh++){
+        var R = SH.rows[sh];
+        if(it.h <= R.h && R.x + it.w <= sheet.L){
+          it.x = R.x; it.y = R.y; R.items.push(it); R.x += it.w + k; placed = true;
+        }
+      }
+      if(!placed){
+        var used = SH.rows.reduce(function(a,r){ return a + r.h + k; }, 0);
+        if(used + it.h <= sheet.W){
+          it.x = 0; it.y = used;
+          SH.rows.push({ y:used, h:it.h, x:it.w + k, items:[it] });
+          placed = true;
+        }
+      }
+    }
+    if(!placed){
+      it.x = 0; it.y = 0;
+      sheets.push({ rows:[{ y:0, h:it.h, x:it.w + k, items:[it] }] });
+    }
+  });
+  var area = items.reduce(function(a,i){ return a + i.w*i.h; }, 0);
+  return { sheets:sheets, items:items, over:over, area:area,
+           capacity: sheets.length*sheet.L*sheet.W };
+}
+
+function exportCSV(sc, mode){
+  var L = ['label,qty,cut_length_mm,end_cuts,section,laminations,boards,total_mm,mass_kg'];
+  sc.rows.forEach(function(r){
+    L.push([JSON.stringify(String(r.label)), r.qty, r.len, JSON.stringify(r.ends||'square'),
+            JSON.stringify(r.sec), r.lam, r.boards, Math.round(r.totalMM), r.kg.toFixed(2)].join(','));
+  });
+  return L.join('\n');
+}
+function exportMD(sc, title, S){
+  var st = S.areas.map(function(a){ return a.label+' '+S.stock[a.g].t+'×'+S.stock[a.g].w; }).join(', ');
+  var L = ['# '+title,'',
+           'Stock: '+st+'. '+S.cut.len+' mm lengths, '+S.cut.kerf+' mm kerf.','',
+           '| '+sc.cols.join(' | ')+' |',
+           '|'+sc.cols.map(function(){ return '---'; }).join('|')+'|'];
+  sc.rows.forEach(function(r){
+    L.push('| '+[r.label, r.qty, r.len, r.ends||'square', r.sec, r.lam, r.boards,
+                 (r.totalMM/1000).toFixed(2)+' m', r.kg.toFixed(1)+' kg'].join(' | ')+' |');
+  });
+  L.push('','**'+sc.parts+' parts · '+sc.boards+' boards · '+sc.metres.toFixed(1)+
+         ' m · '+sc.kg.toFixed(0)+' kg**');
+  return L.join('\n');
+}
+function exportJSON(model, S){
+  var d = DESIGNS[S.designId];
+  return JSON.stringify({
+    design:S.designId, variant:S.variantId, info:d.info,
+    params:S.params, stock:S.stock, cutting:S.cut,
+    parts: model.parts.filter(function(p){ return p.bom !== false; }).map(function(p){
+      return { name:p.name, area:p.group, stock:p.stock, laminations:p.lam,
+               section:p.section, cutLength:Math.round(p.cut*10)/10,
+               endCutDeg:[deg(p.cut1), deg(p.cut2)],
+               size:p.size.map(function(v){ return Math.round(v*10)/10; }),
+               position:p.pos.map(function(v){ return Math.round(v*10)/10; }),
+               rotationX:Math.round(p.rot*180/Math.PI*100)/100 };
+    })
+  }, null, 2);
+}
+function exportFreeCAD(model, S){
+  var L = [
+    '# FreeCAD macro — generated by furniture-kit 04',
+    '# Tools > Macro > Create, paste, Execute. Units are mm.',
+    '# UNTESTED: this emitter has not been run against FreeCAD.',
+    'import FreeCAD as App, Part, math','',
+    'doc = App.newDocument("'+S.designId+'_'+S.variantId+'")','grp = {}',
+    'def group(name):',
+    '    if name not in grp:',
+    '        grp[name] = doc.addObject("App::DocumentObjectGroup", name)',
+    '    return grp[name]','',
+    '# Ends may be bevelled, so a part is a prism on a trapezoid section, not a',
+    '# box. The section is built in YZ and extruded along X.',
+    'def beam(name, area, sx, sy, sz, cx, cy, cz, rot_x_deg, c1_deg=0.0, c2_deg=0.0):',
+    '    hy, hl = sy/2.0, sz/2.0',
+    '    t1 = math.tan(math.radians(c1_deg))',
+    '    t2 = math.tan(math.radians(c2_deg))',
+    '    pts = [(-hy, -hl - hy*t1), (-hy,  hl - hy*t2),',
+    '           ( hy,  hl + hy*t2), ( hy, -hl + hy*t1)]',
+    '    vs = [App.Vector(-sx/2.0, y, z) for (y, z) in pts]',
+    '    wire = Part.makePolygon(vs + [vs[0]])',
+    '    solid = Part.Face(wire).extrude(App.Vector(sx, 0.0, 0.0))',
+    '    o = doc.addObject("Part::Feature", name)',
+    '    o.Shape = solid',
+    '    o.Placement = App.Placement(App.Vector(cx, cy, cz),',
+    '                                App.Rotation(App.Vector(1,0,0), rot_x_deg))',
+    '    group(area).addObject(o)',
+    '    return o',''];
+  var seen = {};
+  model.parts.filter(function(p){ return p.bom !== false; }).forEach(function(p){
+    var base = p.name.replace(/[^A-Za-z0-9]+/g,'_');
+    seen[base] = (seen[base]||0)+1;
+    L.push('beam("'+base+'_'+seen[base]+'", "'+p.group+'", '+
+      p.size.map(function(v){ return v.toFixed(2); }).join(', ')+', '+
+      p.pos.map(function(v){ return v.toFixed(2); }).join(', ')+', '+
+      (p.rot*180/Math.PI).toFixed(3)+', '+
+      ((p.cut1||0)*180/Math.PI).toFixed(3)+', '+
+      ((p.cut2||0)*180/Math.PI).toFixed(3)+')');
+  });
+  L.push('','doc.recompute()','try:','    import FreeCADGui',
+         '    FreeCADGui.SendMsgToActiveView("ViewFit")','except Exception:','    pass');
+  return L.join('\n');
+}
+/* Fusion parameters must be valid identifiers, and only NUMERIC schema fields
+   can become User Parameters. String selects (surface style, fastener
+   treatment) ride along in the embedded design file instead. */
+function fusionParams(S){
+  var d = DESIGNS[S.designId], out = [];
+  d.schema.forEach(function(f){
+    var v = S.params[f.k];
+    if(f.type === 'select' && typeof v === 'string') return;
+    var unit = (f.type === 'bool') ? '' :
+               (f.unit === 'mm') ? 'mm' :
+               (f.unit === '°')  ? 'deg' : '';
+    var num  = (f.type === 'bool') ? (v ? 1 : 0) : +v;
+    out.push({ name:'fk_'+f.k, key:f.k, value:num, unit:unit, label:f.label });
+  });
+  S.areas.forEach(function(a){
+    out.push({ name:'fk_stock_'+a.g+'_t', key:'stock.'+a.g+'.t', value:S.stock[a.g].t,
+               unit:'mm', label:a.label+' board thickness' });
+    out.push({ name:'fk_stock_'+a.g+'_w', key:'stock.'+a.g+'.w', value:S.stock[a.g].w,
+               unit:'mm', label:a.label+' board width' });
+  });
+  return out;
+}
+
+/* World transform for a part: its own local frame rotated about X and moved
+   into place. Row-major 4x4, centimetres — Fusion's internal length unit. */
+function fusionMatrix(p){
+  var c = Math.cos(p.rot), s = Math.sin(p.rot);
+  var x = p.pos[0]/10, y = p.pos[1]/10, z = p.pos[2]/10;
+  return [1,0,0,x,  0,c,-s,y,  0,s,c,z,  0,0,0,1];
+}
+
+function exportFusion(model, S){
+  var params = fusionParams(S);
+  var file = JSON.stringify(designFile());
+  var L = [
+    '# furniture-kit -> Fusion 360, as a parametric assembly.',
+    '# Scripts and Add-Ins > + > paste into the .py > Run.',
+    '#',
+    '# UNTESTED against Fusion from here. The API calls below are written to',
+    '# the documented interfaces but have not been executed.',
+    '#',
+    '# What this builds:',
+    '#   - one COMPONENT per part, named, so Fusion gives you a real browser',
+    '#     tree and BOM',
+    '#   - a SKETCH of each part\'s cross-section, extruded to length; angled',
+    '#     end cuts come out as the sketch profile, not as post-processing',
+    '#   - USER PARAMETERS (fk_*) for every numeric design value',
+    '#   - the furniture-kit design file stored as a document ATTRIBUTE, so it',
+    '#     can be read back out unchanged',
+    '#',
+    '# WHAT ROUND-TRIPS: editing an fk_* parameter value. Run the companion',
+    '# read-back script and paste the result into the web tool.',
+    '# WHAT DOES NOT: adding, deleting or re-arranging geometry. The design',
+    '# logic lives in the web tool, not in this file — structural changes have',
+    '# to be made there. Fusion geometry here is placed, not constrained, so',
+    '# changing fk_* does NOT regenerate the model; it records your intent for',
+    '# the trip back.',
+    '',
+    'import adsk.core, adsk.fusion, traceback, math',
+    '',
+    'DESIGN_FILE = r"""'+file+'"""',
+    '',
+    '# name, value, unit, comment',
+    'PARAMS = ['
+  ];
+  params.forEach(function(q){
+    L.push('    ("'+q.name+'", '+q.value+', "'+q.unit+'", "'+q.label.replace(/"/g,'')+'"),');
+  });
+  L.push(']', '',
+    '# name, area, (sx, sy, sz) mm, cut1 deg, cut2 deg, transform (row-major, cm)',
+    'PARTS = [');
+  model.parts.filter(function(p){ return p.bom !== false; }).forEach(function(p){
+    L.push('    ("'+p.name.replace(/"/g,'')+'", "'+p.group+'", ('+
+      p.size.map(function(v){ return v.toFixed(3); }).join(', ')+'), '+
+      ((p.cut1||0)*180/Math.PI).toFixed(4)+', '+
+      ((p.cut2||0)*180/Math.PI).toFixed(4)+', '+
+      '['+fusionMatrix(p).map(function(v){ return v.toFixed(6); }).join(', ')+']),');
+  });
+  L.push(']', '',
+    'def run(context):',
+    '    ui = None',
+    '    try:',
+    '        app = adsk.core.Application.get()',
+    '        ui = app.userInterface',
+    '        app.documents.add(adsk.core.DocumentTypes.FusionDesignDocumentType)',
+    '        des = adsk.fusion.Design.cast(app.activeProduct)',
+    '        des.designType = adsk.fusion.DesignTypes.ParametricDesignType',
+    '        root = des.rootComponent',
+    '        root.name = "'+DESIGNS[S.designId].name+' '+S.variantId+'"',
+    '',
+    '        ups = des.userParameters',
+    '        for nm, val, un, cm in PARAMS:',
+    '            if ups.itemByName(nm):',
+    '                continue',
+    '            if un:',
+    '                vi = adsk.core.ValueInput.createByString("{} {}".format(val, un))',
+    '            else:',
+    '                vi = adsk.core.ValueInput.createByReal(float(val))',
+    '            ups.add(nm, vi, un, cm)',
+    '',
+    '        # the full design file, so the trip back does not have to guess',
+    '        root.attributes.add("furnitureKit", "designFile", DESIGN_FILE)',
+    '',
+    '        for nm, area, size, c1, c2, mat in PARTS:',
+    '            m = adsk.core.Matrix3D.create()',
+    '            m.setWithArray(mat)',
+    '            occ = root.occurrences.addNewComponent(m)',
+    '            comp = occ.component',
+    '            comp.name = nm',
+    '',
+    '            # cross-section in the part\'s own YZ plane; the bevels are',
+    '            # simply where the two end edges land',
+    '            hy = size[1] / 2.0 / 10.0',
+    '            hl = size[2] / 2.0 / 10.0',
+    '            t1 = math.tan(math.radians(c1))',
+    '            t2 = math.tan(math.radians(c2))',
+    '            pts = [(-hy, -hl - hy * t1), (-hy,  hl - hy * t2),',
+    '                   ( hy,  hl + hy * t2), ( hy, -hl + hy * t1)]',
+    '            sk = comp.sketches.add(comp.yZConstructionPlane)',
+    '            sp = [adsk.core.Point3D.create(u, v, 0) for (u, v) in pts]',
+    '            lines = sk.sketchCurves.sketchLines',
+    '            for i in range(4):',
+    '                lines.addByTwoPoints(sp[i], sp[(i + 1) % 4])',
+    '            sk.name = nm + " profile"',
+    '',
+    '            prof = sk.profiles.item(0)',
+    '            exts = comp.features.extrudeFeatures',
+    '            ei = exts.createInput(prof,',
+    '                 adsk.fusion.FeatureOperations.NewBodyFeatureOperation)',
+    '            ei.setSymmetricExtent(',
+    '                 adsk.core.ValueInput.createByReal(size[0] / 10.0), True)',
+    '            exts.add(ei)',
+    '',
+    '        app.activeViewport.fit()',
+    '        if ui:',
+    '            ui.messageBox("furniture-kit: {} components built.\\n\\n"',
+    '                          "Edit fk_* parameters, then run the read-back "',
+    '                          "script to bring values home.".format(len(PARTS)))',
+    '    except:',
+    '        if ui:',
+    '            ui.messageBox("Failed:\\n{}".format(traceback.format_exc()))');
+  return L.join('\n');
+}
+
+/* The return leg. Reads the stored design file plus whatever the fk_*
+   parameters now say, and prints a furniture-kit design file to paste back. */
+function exportFusionReadback(model, S){
+  var params = fusionParams(S);
+  var L = [
+    '# furniture-kit <- Fusion 360. Run this in the document the builder made.',
+    '# It prints a design file; copy it into the web tool under',
+    '# Export > Load a saved design.',
+    '#',
+    '# UNTESTED against Fusion from here.',
+    '#',
+    '# It reads VALUES ONLY. If you added, deleted or moved geometry in Fusion,',
+    '# none of that comes back — the design logic lives in the web tool. Change',
+    '# it there and re-export.',
+    '',
+    'import adsk.core, adsk.fusion, traceback, json, math',
+    '',
+    '# Changing a board section in Fusion invalidates its price-per-metre, so',
+    '# the rate is recomputed on the way back — unless it had been overridden.',
+    'RATE_PER_CM2 = '+RATE_PER_CM2,
+    '',
+    '# fusion parameter name -> (design-file path, unit kind)',
+    'MAP = {'
+  ];
+  params.forEach(function(q){
+    L.push('    "'+q.name+'": ("'+q.key+'", "'+(q.unit||'')+'"),');
+  });
+  L.push('}', '',
+    'def put(obj, path, value):',
+    '    parts = path.split(".")',
+    '    if len(parts) == 1:',
+    '        obj.setdefault("params", {})[parts[0]] = value',
+    '    else:',
+    '        node = obj.setdefault(parts[0], {})',
+    '        for k in parts[1:-1]:',
+    '            node = node.setdefault(k, {})',
+    '        node[parts[-1]] = value',
+    '',
+    'def run(context):',
+    '    ui = None',
+    '    try:',
+    '        app = adsk.core.Application.get()',
+    '        ui = app.userInterface',
+    '        des = adsk.fusion.Design.cast(app.activeProduct)',
+    '        root = des.rootComponent',
+    '',
+    '        att = root.attributes.itemByName("furnitureKit", "designFile")',
+    '        if not att:',
+    '            ui.messageBox("No furniture-kit design file in this document.\\n"',
+    '                          "Was it built by the furniture-kit export script?")',
+    '            return',
+    '        data = json.loads(att.value)',
+    '        orig = json.loads(att.value)   # untouched copy, to spot overrides',
+    '',
+    '        changed = []',
+    '        for p in des.userParameters:',
+    '            if p.name not in MAP:',
+    '                continue',
+    '            path, unit = MAP[p.name]',
+    '            # p.value is in Fusion internal units: cm for length, rad for angle',
+    '            if unit == "mm":',
+    '                v = p.value * 10.0',
+    '            elif unit == "deg":',
+    '                v = math.degrees(p.value)',
+    '            else:',
+    '                v = p.value',
+    '            v = round(v, 4)',
+    '            if abs(v - round(v)) < 1e-6:',
+    '                v = int(round(v))',
+    '            put(data, path, v)',
+    '            changed.append("{} = {}".format(p.name, v))',
+    '',
+    '        # a section change makes the old ILS/m meaningless',
+    '        for area, cur in (data.get("stock") or {}).items():',
+    '            was = (orig.get("stock") or {}).get(area) or {}',
+    '            auto_was = RATE_PER_CM2 * (was.get("t", 0)/10.0) * (was.get("w", 0)/10.0)',
+    '            if abs(was.get("rate", -1) - auto_was) < 0.01:',
+    '                cur["rate"] = round(RATE_PER_CM2 * (cur["t"]/10.0) * (cur["w"]/10.0), 3)',
+    '',
+    '        out = json.dumps(data, indent=2)',
+    '        ui.messageBox(out, "furniture-kit design file — copy all of this")',
+    '        app.log("furniture-kit design file:\\n" + out)',
+    '    except:',
+    '        if ui:',
+    '            ui.messageBox("Failed:\\n{}".format(traceback.format_exc()))');
+  return L.join('\n');
+}
+
+/* =========================================================================
+   §5b outputs/cost.js — Israeli workshop pricing
+   -------------------------------------------------------------------------
+   Israeli timber yards quote solid stock by the LINEAR METRE, sheets by the
+   sheet, and cutting-to-size as a separate per-cut charge. Anchors used for
+   the defaults (Aug 2026, ex-VAT):
+       planed solid pine  3x8 cm  ~7 ILS/m,  3x15 cm ~12 ILS/m
+         -> roughly 0.29 ILS per metre per cm2 of section
+       birch plywood 18 mm, 244x122   180-350 ILS/sheet
+       laminated pine panel 18 mm, 244x122   ~500 ILS/sheet incl. cutting
+       cutting to size    2.5-25 ILS per cut
+       VAT                18%
+   Every one of these is an editable field — they are ballpark, not a quote.
+   ========================================================================= */
+
+var RATE_PER_CM2 = 0.30;        /* ILS per linear metre per cm^2 of section */
+function autoRate(t, w){ return RATE_PER_CM2 * (t/10) * (w/10); }
+
+function costing(){
+  var c = S.cost, lines = [], barTotal = 0, barCuts = 0;
+  NEST.forEach(function(g){
+    var areas = S.areas.filter(function(x){
+      return S.stock[x.g].t===g.t && S.stock[x.g].w===g.w; });
+    var rate = areas.length ? S.stock[areas[0].g].rate : autoRate(g.t, g.w);
+    var perBar = rate * (S.cut.len/1000);
+    var pieces = g.bins.reduce(function(a,b){ return a+b.cuts.length; }, 0);
+    barCuts += pieces;
+    barTotal += g.bins.length * perBar;
+    lines.push({ what:g.sec, detail:areas.map(function(a){ return a.label; }).join(', ') || '—',
+                 qty:g.bins.length, unit:'bar @ '+S.cut.len+' mm',
+                 each:perBar, sum:g.bins.length*perBar });
+  });
+  var sheets = SHEETNEST ? SHEETNEST.sheets.length : 0;
+  var sheetCuts = SHEETNEST ? SHEETNEST.items.length : 0;
+  var sheetTotal = sheets * S.sheet.price;
+  if(sheets) lines.push({ what:S.sheet.t+' mm sheet',
+    detail:S.sheet.L+'×'+S.sheet.W, qty:sheets, unit:'sheet',
+    each:S.sheet.price, sum:sheetTotal });
+
+  var cutTotal = barCuts*c.cutBar + sheetCuts*c.cutSheet;
+  var material = barTotal + sheetTotal;
+  var sub = material + cutTotal;
+  var vat = sub * c.vat/100;
+  return { lines:lines, material:material, barCuts:barCuts, sheetCuts:sheetCuts,
+           cutTotal:cutTotal, sub:sub, vat:vat, total:sub+vat };
+}
+
+/* =========================================================================
+   §6a checks/interference.js — do any two parts occupy the same timber?
+   -------------------------------------------------------------------------
+   Rotation is only ever about X, so a part is an interval in X crossed with
+   an oriented rectangle in YZ. Broad-phase on the AABB, then 2D SAT on the
+   YZ rectangles. Touching faces project to exactly zero overlap, so a small
+   tolerance keeps butt joints from being reported as clashes.
+   ========================================================================= */
+
+function partBounds(p){
+  var poly = partSection(p);
+  var y0=1e9,y1=-1e9,z0=1e9,z1=-1e9;
+  poly.forEach(function(q){
+    if(q[0]<y0)y0=q[0]; if(q[0]>y1)y1=q[0];
+    if(q[1]<z0)z0=q[1]; if(q[1]>z1)z1=q[1];
+  });
+  return { p:p, poly:poly,
+           x0:p.pos[0]-p.size[0]/2, x1:p.pos[0]+p.size[0]/2,
+           y0:y0, y1:y1, z0:z0, z1:z1 };
+}
+
+/* Penetration of two convex polygons in YZ, or 0 if separated. A bevel turns
+   the cross-section from a rectangle into a trapezoid, so the old
+   rectangle-only SAT would have quietly reported the wrong overlap. */
+function satPoly(A, B, tol){
+  var best = Infinity;
+  var polys = [A, B];
+  for(var pi=0; pi<2; pi++){
+    var P = polys[pi];
+    for(var i=0;i<P.length;i++){
+      var a=P[i], b=P[(i+1)%P.length];
+      var ex=b[0]-a[0], ey=b[1]-a[1];
+      var L=Math.hypot(ex,ey); if(L<1e-9) continue;
+      var n=[-ey/L, ex/L];
+      var aMin=Infinity,aMax=-Infinity,bMin=Infinity,bMax=-Infinity, j, d;
+      for(j=0;j<A.length;j++){ d=A[j][0]*n[0]+A[j][1]*n[1];
+        if(d<aMin)aMin=d; if(d>aMax)aMax=d; }
+      for(j=0;j<B.length;j++){ d=B[j][0]*n[0]+B[j][1]*n[1];
+        if(d<bMin)bMin=d; if(d>bMax)bMax=d; }
+      var ov = Math.min(aMax,bMax) - Math.max(aMin,bMin);
+      if(ov <= tol) return 0;
+      if(ov < best) best = ov;
+    }
+  }
+  return best === Infinity ? 0 : best;
+}
+
+function interferences(parts, tol){
+  tol = (tol==null) ? 0.5 : tol;
+  var B = parts.filter(function(p){ return p.bom !== false; }).map(partBounds);
+  var hits = [];
+  for(var i=0;i<B.length;i++){
+    B[i].p.clash = false;
+  }
+  for(i=0;i<B.length;i++){
+    for(var j=i+1;j<B.length;j++){
+      var a=B[i], b=B[j];
+      var ox = Math.min(a.x1,b.x1) - Math.max(a.x0,b.x0);
+      if(ox <= tol) continue;
+      if(Math.min(a.y1,b.y1) - Math.max(a.y0,b.y0) <= tol) continue;
+      if(Math.min(a.z1,b.z1) - Math.max(a.z0,b.z0) <= tol) continue;
+      var pen = satPoly(a.poly, b.poly, tol);
+      if(pen <= tol) continue;
+      a.p.clash = true; b.p.clash = true;
+      hits.push({ a:a.p.name, b:b.p.name, ga:a.p.group, gb:b.p.group,
+                  depth: Math.min(ox, pen), x:ox, yz:pen });
+    }
+  }
+  /* collapse the repeats — a bench has four identical post/rail clashes */
+  var map={};
+  hits.forEach(function(h){
+    var k=[h.a,h.b].sort().join(' ↔ ');
+    if(!map[k]) map[k]={ pair:k, n:0, depth:0 };
+    map[k].n++;
+    map[k].depth = Math.max(map[k].depth, h.depth);
+  });
+  var rows = Object.keys(map).map(function(k){ return map[k]; })
+                   .sort(function(x,y){ return y.depth-x.depth; });
+  return { pairs:hits.length, rows:rows };
+}
+
+/* =========================================================================
+   §6  checks/ — rules of thumb, stated as rules of thumb
+   ========================================================================= */
+
+var E_SOFTWOOD = 10000;
+
+function deflection(sp){
+  var I = sp.b*Math.pow(sp.h,3)/12;
+  var w = (sp.load/1000)*sp.tributary;
+  return { d: 5*w*Math.pow(sp.span,4)/(384*E_SOFTWOOD*I), I:I };
+}
+
+function runChecks(model, sc, nested, S){
+  var out = [], cut = S.cut;
+
+  /* interference first — everything else is moot if two parts want the same
+     piece of timber */
+  var clash = interferences(model.parts);
+  out.push(clash.pairs === 0
+    ? { s:'ok', t:'No interference. Every pair of parts is separated or butting — '+
+                  'nothing occupies the same timber as anything else.', v:'0 clashes' }
+    : { s:'fail', t:'<b>'+clash.pairs+' interfering pair(s).</b> '+
+          clash.rows.slice(0,4).map(function(r){
+            return r.pair+' by '+r.depth.toFixed(0)+' mm'+(r.n>1?' (×'+r.n+')':'');
+          }).join('; ')+
+          (clash.rows.length>4 ? ' … and '+(clash.rows.length-4)+' more' : '')+
+          '. Usually this means a board is too wide for the frame it sits in — '+
+          'clashing parts are drawn in red.',
+        v: clash.pairs+' clashes' });
+
+  var over = sc.rows.filter(function(r){ return r.len + cut.kerf > cut.len; });
+  out.push(over.length
+    ? { s:'fail', t:'<b>'+over.length+' row(s) exceed stock length.</b> '+
+                     over.map(function(r){ return r.label+' at '+r.len+' mm'; }).join(', ')+
+                     ' will not come out of a '+cut.len+' mm board.', v:'' }
+    : { s:'ok', t:'Every cut fits a <b>'+cut.len+' mm</b> stock length.',
+        v: Math.max.apply(null, sc.rows.map(function(r){ return r.len; }))+' mm longest' });
+
+  (model.spans||[]).forEach(function(sp){
+    var r = deflection(sp), ratio = sp.span/r.d;
+    var s = ratio>300 ? 'ok' : (ratio>200 ? 'warn' : 'fail');
+    out.push({ s:s, t:'<b>'+sp.label+' deflection</b> over '+Math.round(sp.span)+' mm at '+sp.load+
+        ' kPa, on a '+Math.round(sp.h)+' mm thick board — span/'+Math.round(ratio)+
+        (s==='ok'?' (comfortable).':s==='warn'?' (springy; thicken the board for that area or add a bearer).'
+                                             :' (too bouncy — thicken the board or add a support).'),
+      v: r.d.toFixed(2)+' mm' });
+  });
+
+  /* LIMIT-3 from 03 is gone: sections are derived from stock × lamination,
+     so an unreachable section can no longer be expressed. */
+  out.push({ s:'ok',
+    t:'Every section is <b>derived</b> from its area\'s board and a lamination count, so all are '+
+      'reachable by stacking whole boards. (In prototype 03 sections were requested in mm and '+
+      'silently rounded — that failure mode no longer exists.)',
+    v: S.areas.map(function(a){ return S.stock[a.g].t+'×'+S.stock[a.g].w; })
+        .filter(function(v,i,arr){ return arr.indexOf(v)===i; }).join('  ') });
+
+  if(SHEETNEST){
+    out.push(SHEETNEST.over.length
+      ? { s:'fail', t:'<b>'+SHEETNEST.over.length+' panel(s) larger than a '+
+            S.sheet.L+' × '+S.sheet.W+' mm sheet</b>, in either orientation. Either the piece '+
+            'has to be narrower, the sheet bigger, or the surface made from slats or a glued panel.',
+          v:'too big' }
+      : { s:'ok', t:'Every panel fits a '+S.sheet.L+' × '+S.sheet.W+' mm sheet. Sheet waste is '+
+            Math.round(100*(1 - SHEETNEST.area/SHEETNEST.capacity))+'% — a single top off a full '+
+            'sheet always leaves a large offcut, which is normal and worth planning a second part around.',
+          v: SHEETNEST.sheets.length+' sheet'+(SHEETNEST.sheets.length>1?'s':'') });
+  }
+
+  /* Model-vs-schedule integrity. Every laminated part must have one non-length
+     axis equal to its built-up thickness; if not, the box drawn in 3D is a
+     different size from the section the cut list is charging you for. */
+  if(model.warnings && model.warnings.length)
+    out.push({ s:'fail', t:'<b>The frame has run out of room.</b> '+
+        model.warnings.filter(function(v,i,a){ return a.indexOf(v)===i; }).join('; ')+
+        '. The boards chosen for these areas are too wide for the overall size.',
+        v: model.warnings.length+' member(s)' });
+
+  var degenerate = model.parts.filter(function(pp){
+    return pp.bom !== false && pp.size.some(function(d){ return !(d > 0); });
+  });
+  if(degenerate.length)
+    out.push({ s:'fail', t:'<b>'+degenerate.length+' part(s) with a zero or negative dimension</b> — '+
+        degenerate[0].name+' at '+degenerate[0].size.map(Math.round).join('×')+
+        '. The frame has run out of room for it.', v:'' });
+  var mismatched = model.parts.filter(function(pp){
+    return pp.bom !== false && pp.lam > 1 && pp.kind !== 'panel' && !pp.glued
+        && lamAxis(pp) < 0;
+  });
+  out.push(mismatched.length
+    ? { s:'fail', t:'<b>'+mismatched.length+' part(s) drawn at a size their section does not match.</b> '+
+          mismatched[0].name+' is modelled '+mismatched[0].size.map(Math.round).join('×')+
+          ' but scheduled as '+mismatched[0].sec+'. The 3D view and the cut list disagree.', v:'' }
+    : { s:'ok', t:'Every glue-up is drawn at exactly the section it is scheduled at — '+
+          'model and cut list agree.', v:'' });
+
+  var gapKey = (DESIGNS[S.designId].schema.filter(function(f){ return f.role==='gap'; })[0]||{}).k;
+  var solidTop = MODEL && (S.params.topStyle||S.params.seatStyle||'slats') !== 'slats';
+  if(gapKey && !solidTop){
+    var g = S.params[gapKey];
+    out.push(g>=8 && g<=25
+      ? { s:'warn', t:'Slat gap sits in the <b>8–25 mm</b> finger-entrapment band. Fine for adults, worth closing below 8 or opening past 25 if children use it.', v:g+' mm' }
+      : { s:'ok', t:'Slat gap clear of the 8–25 mm finger-entrapment band.', v:g+' mm' });
+  }
+
+  var thin = S.areas.filter(function(a){ return S.stock[a.g].t < 15; });
+  out.push(thin.length
+    ? { s:'warn', t:'<b>'+thin.map(function(a){ return a.label; }).join(', ')+
+                    '</b> on boards under 15 mm. With 5 mm screws you want 15 mm to each edge — pilot everything or it will split.',
+        v: thin[0].label+' '+S.stock[thin[0].g].t+' mm' }
+    : { s:'ok', t:'All areas on boards ≥ 15 mm — workable edge distance for 5 mm screws.', v:'' });
+
+  var shortest = Math.min.apply(null, sc.rows.map(function(r){ return r.len; }));
+  out.push(shortest < 100
+    ? { s:'warn', t:'Shortest part is under <b>100 mm</b> — end distance for a screw is ~50 mm, so this piece is awkward to fix and dangerous to cut.', v:shortest+' mm' }
+    : { s:'ok', t:'Shortest part is long enough to hold, cut, and screw safely.', v:shortest+' mm' });
+
+  var heavyLam = sc.rows.filter(function(r){ return r.lam >= 4; });
+  out.push(heavyLam.length
+    ? { s:'warn', t:'<b>'+heavyLam.reduce(function(a,r){ return a+r.boards; },0)+' boards</b> go into '+
+                    heavyLam.length+' row(s) at '+heavyLam[0].lam+
+                    '-board build-up — a lot of clamping and glue before any joinery.', v:heavyLam[0].sec }
+    : { s:'ok', t:'Nothing needs more than a 3-board glue-up.', v:'' });
+
+  var cap = nested.reduce(function(a,n){ return a+n.capacity; },0);
+  var waste = cap ? (1 - sc.metres*1000/cap)*100 : 0;
+  out.push({ s: waste<20?'ok':(waste<35?'warn':'fail'),
+    t:'Offcut waste after nesting at '+cut.kerf+' mm kerf, nested separately per board size. '+
+      (waste<20?'Efficient.':waste<35?'Middling — nudge a length to fit the bar.'
+                                     :'Poor — a different stock length would pay for itself.'),
+    v: waste.toFixed(0)+'%' });
+
+  out.push({ s: sc.kg>35?'warn':'ok',
+    t:'Finished mass at '+S.cut.density+' kg/m³. '+
+      (sc.kg>35?'Over about 35 kg this is a two-person lift — worth knowing before it is glued up.'
+               :'One person can move this.'),
+    v: sc.kg.toFixed(0)+' kg' });
+
+  var raked = model.parts.some(function(p){ return Math.abs(p.rot) > 1e-6; });
+  out.push({ s:'warn',
+    t:'<b>LIMIT-1 — rotation is a single angle about X.</b> Every part carries one scalar <code>rot</code>, so a member can lean fore-and-aft but never splay sideways or twist. '+
+      (raked?'This model uses it. ':'')+'A splayed leg or a mitred corner needs a full rotation before it can be drawn at all.', v:'' });
+  out.push({ s:'warn',
+    t:'<b>LIMIT-2 — no joinery, only boxes.</b> Parts interpenetrate where they meet; nothing models a housing, a lap, or a screw hole, so cut lengths are optimistic wherever a member lands <i>into</i> another rather than <i>onto</i> it.', v:'' });
+
+  return out;
+}
+
+/* =========================================================================
+   §7  index.html — state, schema-driven UI, wiring
+   ========================================================================= */
+
+var S = {
+  designId:'bench', variantId:'F1',
+  params:{}, stock:{}, areas:[],
+  cut:{ len:2400, kerf:3, density:500 },
+  sheet:{ t:18, L:2440, W:1220, price:240, kerf:3 },
+  cost:{ vat:18, cutBar:3, cutSheet:12 },
+  notes:{}
+};
+var MODEL=null, SC=null, NEST=null, SHEETNEST=null,
+    VIEWTAB='3d', EXPKIND='design.json', REPORT='name';
+
+function defaults(d){
+  var P={}; d.schema.forEach(function(f){ P[f.k]=f.def; }); return P;
+}
+function stockDefaults(d){
+  var st={};
+  d.areas.forEach(function(a){
+    st[a.g] = { t:a.def[0], w:a.def[1], rate:autoRate(a.def[0], a.def[1]) };
+  });
+  st.head = { t:0, w:0, rate:0 };
+  return st;
+}
+function buildModel(designId, variantId, params, stock){
+  var d = DESIGNS[designId];
+  var ctx = makeCtx(function(area){ return stock[area] || stock.post || {t:20,w:80}; },
+                    stock.__sheet || S.sheet);
+  var r = d.build(params, ctx, variantId);
+  if(Array.isArray(r)) r = { parts:r, spans:[] };
+  r.parts = r.parts || ctx.parts;
+  r.spans = r.spans || [];
+  r.warnings = ctx.warnings;
+  return r;
+}
+
+function css(c){ return 'rgb('+c.map(function(v){ return Math.round(v*255); }).join(',')+')'; }
+
+/* ---- design / variant lists ---- */
+function renderDesigns(){
+  var h = document.getElementById('designList'); h.innerHTML='';
+  Object.keys(DESIGNS).forEach(function(id){
+    var d = DESIGNS[id], b = document.createElement('button');
+    b.className = 'vbtn'+(id===S.designId?' on':'');
+    b.innerHTML = '<b>'+d.name+'</b>'+d.blurb.split('.')[0]+'.';
+    b.onclick = function(){ selectDesign(id); };
+    h.appendChild(b);
+  });
+}
+function renderVariants(){
+  var d = DESIGNS[S.designId], h = document.getElementById('variantList'); h.innerHTML='';
+  Object.keys(d.variants).forEach(function(vid){
+    var v = d.variants[vid], b = document.createElement('button');
+    b.className = 'vbtn'+(vid===S.variantId?' on':'');
+    b.innerHTML = '<b>'+v.name+'</b>'+v.tag;
+    b.onclick = function(){ selectVariant(vid); };
+    h.appendChild(b);
+  });
+  document.getElementById('vnote').innerHTML = d.variants[S.variantId].note;
+}
+
+/* ---- per-area stock pickers ---- */
+function usesSheet(){
+  return MODEL && MODEL.parts.some(function(p){ return p.kind === 'panel'; });
+}
+function renderSheetStock(){
+  document.getElementById('sheetHost').style.display = usesSheet() ? 'block' : 'none';
+  document.getElementById('sheetGot').textContent =
+    SHEETNEST ? SHEETNEST.sheets.length+' sheet'+(SHEETNEST.sheets.length>1?'s':'') : '—';
+  [['shT','t'],['shP','price'],['shL','L'],['shW','W']].forEach(function(pair){
+    var el=document.getElementById(pair[0]);
+    if(document.activeElement !== el) el.value = S.sheet[pair[1]];
+  });
+}
+function renderAreas(){
+  var h = document.getElementById('areaHost'); h.innerHTML='';
+  S.areas.forEach(function(a){
+    var st = S.stock[a.g];
+    var wrap = document.createElement('div');
+    wrap.className = 'area';
+    wrap.style.setProperty('--sw', css(COLOR[a.g] || [0.69,0.51,0.29]));
+    wrap.innerHTML =
+      '<div class="top"><span class="nm">'+a.label+'</span><span class="got"></span></div>'+
+      '<div class="fields">'+
+        '<select></select>'+
+        '<input type="number" step="1" min="6" title="thickness mm">'+
+        '<input type="number" step="1" min="20" title="width mm">'+
+        '<div class="cap" style="display:flex;gap:6px;align-items:center;margin-top:6px">'+
+          '<span style="white-space:nowrap">ILS / m</span>'+
+          '<input type="number" step="0.1" min="0" title="price per linear metre" '+
+                 'style="width:60px;padding:2px 4px">'+
+          '<span class="rateAuto" style="opacity:.7"></span>'+
+        '</div>'+
+        '<div class="cap">'+a.hint+'</div>'+
+      '</div>';
+    var sel = wrap.querySelector('select');
+    var nt  = wrap.querySelectorAll('input')[0];
+    var nw  = wrap.querySelectorAll('input')[1];
+    var nr  = wrap.querySelectorAll('input')[2];
+    var got = wrap.querySelector('.got');
+    var rAuto = wrap.querySelector('.rateAuto');
+
+    PRESET_SECTIONS.forEach(function(p){
+      var o = document.createElement('option');
+      o.value = p[0]+'x'+p[1]; o.textContent = p[0]+' × '+p[1];
+      sel.appendChild(o);
+    });
+    var custom = document.createElement('option');
+    custom.value='custom'; custom.textContent='custom…';
+    sel.appendChild(custom);
+
+    function sync(){
+      nt.value = st.t; nw.value = st.w;
+      var match = PRESET_SECTIONS.some(function(p){ return p[0]===st.t && p[1]===st.w; });
+      sel.value = match ? st.t+'x'+st.w : 'custom';
+      /* show what this area's sections actually come out as */
+      var used = (MODEL ? MODEL.parts.filter(function(p){ return p.group===a.g && p.bom!==false; }) : []);
+      var lams = used.map(function(p){ return p.lam; })
+                     .filter(function(v,i,arr){ return arr.indexOf(v)===i; })
+                     .sort(function(x,y){ return x-y; });
+      got.textContent = lams.length
+        ? lams.map(function(n){ return (n>1? n+'bd ':'')+(n*st.t)+'×'+st.w; }).join(' · ')
+        : '—';
+      if(document.activeElement !== nr) nr.value = Math.round(st.rate*100)/100;
+      var auto = autoRate(st.t, st.w);
+      rAuto.textContent = (Math.abs(auto - st.rate) < 0.01)
+        ? '(auto)' : '(auto '+ (Math.round(auto*100)/100) +')';
+    }
+    sel.onchange = function(){
+      if(sel.value==='custom') return;
+      var p = sel.value.split('x');
+      st.t = +p[0]; st.w = +p[1]; st.rate = autoRate(st.t, st.w); rebuild();
+    };
+    /* the rate follows the section unless the user has typed their own */
+    nt.oninput = function(){ if(+nt.value>=6){ st.t=+nt.value; st.rate=autoRate(st.t,st.w); rebuild(); } };
+    nw.oninput = function(){ if(+nw.value>=20){ st.w=+nw.value; st.rate=autoRate(st.t,st.w); rebuild(); } };
+    nr.oninput = function(){ if(+nr.value>=0){ st.rate = +nr.value; rebuild(); } };
+    areaSyncers.push(sync);
+    sync();
+    h.appendChild(wrap);
+  });
+}
+var areaSyncers = [];
+
+/* ---- schema-generated params ---- */
+var syncers = [];
+function renderParams(){
+  var d = DESIGNS[S.designId], h = document.getElementById('paramHost');
+  h.innerHTML=''; syncers=[];
+  var groups=[];
+  d.schema.forEach(function(f){ if(groups.indexOf(f.group)<0) groups.push(f.group); });
+  groups.forEach(function(g){
+    var wrap = document.createElement('div');
+    wrap.className='grp';
+    wrap.innerHTML = '<p class="eyebrow">'+g+'</p>';
+    d.schema.filter(function(f){ return f.group===g; }).forEach(function(f){
+      wrap.appendChild(control(f));
+    });
+    h.appendChild(wrap);
+  });
+}
+function control(f){
+  var el = document.createElement('div');
+  if(f.type==='range'){
+    el.innerHTML = '<div class="row"><label>'+f.label+'</label><output></output></div>'+
+                   '<input type="range" min="'+f.min+'" max="'+f.max+'" step="'+f.step+'">';
+    var out=el.querySelector('output'), inp=el.querySelector('input');
+    var sync=function(){ inp.value=S.params[f.k]; out.textContent=S.params[f.k]+(f.unit?' '+f.unit:''); };
+    inp.oninput=function(){ S.params[f.k]=+inp.value; out.textContent=inp.value+(f.unit?' '+f.unit:''); rebuild(); };
+    sync(); syncers.push(sync);
+  } else if(f.type==='bool'){
+    el.innerHTML = '<label class="chk"><input type="checkbox"> '+f.label+'</label>';
+    var cb=el.querySelector('input');
+    var syncB=function(){ cb.checked=!!S.params[f.k]; };
+    cb.onchange=function(){ S.params[f.k]=cb.checked; rebuild(); };
+    syncB(); syncers.push(syncB);
+  } else if(f.type==='select'){
+    el.innerHTML = '<div class="row"><label>'+f.label+'</label></div><div class="seg"></div>';
+    var seg=el.querySelector('.seg');
+    f.options.forEach(function(o){
+      var b=document.createElement('button');
+      b.textContent=o.label; b._v=o.v;
+      b.onclick=function(){ S.params[f.k]=o.v; syncS(); rebuild(); };
+      seg.appendChild(b);
+    });
+    var syncS=function(){
+      Array.prototype.forEach.call(seg.children, function(b){
+        b.classList.toggle('on', b._v===S.params[f.k]);
+      });
+    };
+    syncS(); syncers.push(syncS);
+  }
+  return el;
+}
+
+function selectDesign(id){
+  S.designId=id;
+  var d = DESIGNS[id];
+  S.variantId = Object.keys(d.variants)[0];
+  S.params = defaults(d);
+  Object.assign(S.params, d.variants[S.variantId].set);
+  S.areas = d.areas;
+  S.stock = stockDefaults(d);
+  document.getElementById('dTitle').textContent = d.name;
+  document.getElementById('dBlurb').textContent = d.blurb;
+  document.getElementById('dProv').textContent =
+    'v'+d.info.version+' · '+d.info.license+' · designer '+d.info.designer;
+  areaSyncers = [];
+  renderDesigns(); renderVariants(); renderParams(); renderAreas();
+  rebuild(); fitView(); draw();
+}
+function selectVariant(vid){
+  S.variantId=vid;
+  var d=DESIGNS[S.designId];
+  S.params=defaults(d);
+  Object.assign(S.params, d.variants[vid].set);
+  renderVariants(); renderParams();
+  rebuild();
+}
+
+/* ---- selection: click a part to inspect and annotate it ----------------
+   Selection is by part TYPE, not instance, so picking one leg lights all four
+   and a note attaches to the thing the carpenter cuts, not to one copy. */
+function selectPart(p){
+  var box = document.getElementById('sel');
+  if(!p){ SEL_KEY=null; box.style.display='none'; draw(); return; }
+  SEL_KEY = partKey(p);
+  var n = MODEL.parts.filter(function(x){ return x.bom!==false && partKey(x)===SEL_KEY; }).length;
+  var boards = n * (p.kind==='panel' ? 1 : p.lam);
+  document.getElementById('selName').textContent = p.name;
+  document.getElementById('selDims').innerHTML =
+    (p.kind==='panel'
+      ? p.panel.L+' × '+p.panel.W+' × '+p.panel.t+' mm sheet'
+      : 'cut <b style="color:#7fd0fb">'+Math.round(p.cut)+'</b> mm · '+p.sec)+
+    '<br>ends '+endText(p)+' · area <b>'+p.group+'</b>'+
+    '<br>'+n+' in the piece → '+boards+' board'+(boards>1?'s':'')+' to cut';
+  document.getElementById('selNote').value = S.notes[SEL_KEY] || '';
+  document.getElementById('selMsg').textContent = '';
+  box.style.display='block';
+  draw();
+}
+document.getElementById('selClose').onclick = function(){ selectPart(null); };
+document.getElementById('selNote').oninput = function(e){
+  if(!SEL_KEY) return;
+  var v = e.target.value;
+  if(v.trim()) S.notes[SEL_KEY] = v; else delete S.notes[SEL_KEY];
+};
+document.getElementById('selCopy').onclick = function(){
+  if(!SEL_KEY) return;
+  var p = MODEL.parts.filter(function(x){ return partKey(x)===SEL_KEY; })[0];
+  var d = DESIGNS[S.designId];
+  var ref = [
+    'furniture-kit · '+d.name+' / '+d.variants[S.variantId].name,
+    'part: '+p.name+'  (area "'+p.group+'")',
+    'cut '+Math.round(p.cut)+' mm · section '+p.sec+' · ends '+endText(p),
+    'size '+p.size.map(Math.round).join(' × ')+' mm · rot '+
+      (Math.round(p.rot*180/Math.PI*10)/10)+'° · at '+p.pos.map(Math.round).join(', '),
+    S.notes[SEL_KEY] ? 'note: '+S.notes[SEL_KEY] : '',
+    '', 'design file:', JSON.stringify(designFile())
+  ].filter(Boolean).join('\n');
+  var msg = document.getElementById('selMsg');
+  if(navigator.clipboard) navigator.clipboard.writeText(ref).then(
+    function(){ msg.textContent='copied — paste it to Claude'; },
+    function(){ msg.textContent='copy failed'; });
+  else msg.textContent='clipboard unavailable';
+};
+
+/* ---- panes ---- */
+function renderCut(){
+  var head=document.getElementById('cutHead');
+  head.innerHTML = SC.cols.map(function(c){ return '<th>'+c+'</th>'; }).join('');
+  document.getElementById('reportHint').textContent = SC.hint;
+  var tb=document.getElementById('tbCut'); tb.innerHTML='';
+  SC.rows.forEach(function(r){
+    var tr=document.createElement('tr');
+    var sw='<span class="swatch" style="background:'+css(COLOR[r.group]||[0.69,0.51,0.29])+'"></span>';
+    tr.innerHTML =
+      '<td>'+sw+r.label+'</td><td class="num">'+r.qty+'</td>'+
+      '<td class="num">'+(REPORT==='section'?'—':(r.dimsText||r.len))+'</td>'+
+      '<td class="dim">'+(r.ends||'square')+'</td>'+
+      '<td class="dim">'+r.sec+'</td><td class="num">'+r.lam+'</td>'+
+      '<td class="num">'+(r.kind==='panel' ? (r.area.toFixed(2)+' m²') : r.boards)+'</td>'+
+      '<td class="dim">'+(r.totalMM/1000).toFixed(2)+' m</td>'+
+      '<td class="dim">'+r.kg.toFixed(1)+' kg</td>';
+    tr.onmouseenter=function(){ isoGroup=r.group; draw(); };
+    tr.onmouseleave=function(){ isoGroup=null; draw(); };
+    tb.appendChild(tr);
+  });
+  var tot=document.createElement('tr'); tot.className='tot';
+  tot.innerHTML='<td>Total</td><td class="num">'+SC.parts+'</td><td></td><td></td><td></td><td></td>'+
+                '<td class="num">'+SC.boards+'</td><td class="dim">'+SC.metres.toFixed(2)+
+                ' m</td><td class="dim">'+SC.kg.toFixed(1)+' kg</td>';
+  tb.appendChild(tot);
+}
+
+function renderNest(){
+  var h=document.getElementById('nestBody'); h.innerHTML='';
+  NEST.forEach(function(g){
+    var areas = S.areas.filter(function(a){
+      return S.stock[a.g].t===g.t && S.stock[a.g].w===g.w;
+    }).map(function(a){ return a.label; });
+    var t=document.createElement('p'); t.className='nsec';
+    t.textContent = g.sec+' — '+g.bins.length+' × '+S.cut.len+' mm'+
+                    (areas.length ? '   ·   '+areas.join(', ') : '');
+    h.appendChild(t);
+    g.bins.forEach(function(bin,i){
+      var bar=document.createElement('div'); bar.className='bar';
+      var acc=0, html='';
+      bin.cuts.forEach(function(c,j){
+        var pct=100*c.len/S.cut.len;
+        var hue=['#e8b33a','#c9954f','#d4a55f','#b8874a'][j%4];
+        html += '<span style="flex:0 0 '+pct+'%;background:'+hue+'" title="'+c.name+' — '+c.len+' mm">'+
+                (pct>7?c.len:'')+'</span>';
+        acc += c.len + S.cut.kerf;
+      });
+      var waste=Math.max(0, S.cut.len-acc);
+      html += '<span class="waste" style="flex:1 1 auto">'+(waste>120?Math.round(waste)+' offcut':'')+'</span>';
+      bar.innerHTML=html; h.appendChild(bar);
+      var l=document.createElement('div'); l.className='barlbl';
+      l.innerHTML='<span>bar '+(i+1)+' · '+bin.cuts.length+' cuts</span><span>'+
+                  Math.round(100*(1-waste/S.cut.len))+'% used · '+Math.round(waste)+' mm left</span>';
+      h.appendChild(l);
+    });
+    if(g.over.length){
+      var w=document.createElement('p'); w.className='nsec'; w.style.color='var(--red)';
+      w.textContent=g.over.length+' piece(s) longer than the stock length and not nested.';
+      h.appendChild(w);
+    }
+  });
+
+  if(SHEETNEST){
+    var st=document.createElement('p'); st.className='nsec';
+    st.textContent = S.sheet.t+' mm sheet — '+SHEETNEST.sheets.length+' × '+
+                     S.sheet.L+' × '+S.sheet.W+' mm';
+    h.appendChild(st);
+    SHEETNEST.sheets.forEach(function(SHt, si){
+      var scale = 420/S.sheet.L;
+      var box=document.createElement('div');
+      box.style.cssText='position:relative;border:1px solid var(--rule);background:#1a1e23;'+
+        'width:'+Math.round(S.sheet.L*scale)+'px;height:'+Math.round(S.sheet.W*scale)+'px;margin-bottom:4px';
+      SHt.rows.forEach(function(R){
+        R.items.forEach(function(it){
+          var d=document.createElement('div');
+          d.title=it.name+' — '+it.w+' × '+it.h;
+          d.style.cssText='position:absolute;left:'+(it.x*scale)+'px;top:'+(it.y*scale)+'px;'+
+            'width:'+(it.w*scale)+'px;height:'+(it.h*scale)+'px;background:#c9954f;'+
+            'border:1px solid #1a1e23;color:#1a1408;font-size:10px;display:flex;'+
+            'align-items:center;justify-content:center;overflow:hidden;white-space:nowrap';
+          d.textContent = it.w+'×'+it.h;
+          box.appendChild(d);
+        });
+      });
+      h.appendChild(box);
+      var lab=document.createElement('div'); lab.className='barlbl';
+      var used=SHt.rows.reduce(function(a,R){ return a+R.items.reduce(function(b,i){ return b+i.w*i.h; },0); },0);
+      lab.innerHTML='<span>sheet '+(si+1)+'</span><span>'+
+        Math.round(100*used/(S.sheet.L*S.sheet.W))+'% used</span>';
+      h.appendChild(lab);
+    });
+    if(SHEETNEST.over.length){
+      var ow=document.createElement('p'); ow.className='nsec'; ow.style.color='var(--red)';
+      ow.textContent=SHEETNEST.over.length+' panel(s) larger than a sheet — not nested.';
+      h.appendChild(ow);
+    }
+  }
+}
+
+function variantStats(vid){
+  var d=DESIGNS[S.designId];
+  var P=defaults(d); Object.assign(P, d.variants[vid].set);
+  var m=buildModel(S.designId, vid, P, S.stock);
+  var sc=schedule(m.parts, 'name', S.cut.density);
+  var nz=nest(m.parts, S.cut);
+  var bars=nz.reduce(function(a,n){ return a+n.bins.length; },0);
+  var cap=bars*S.cut.len, waste=cap?(1-sc.metres*1000/cap)*100:0;
+  var nSh = nestSheets(m.parts, {t:S.sheet.t,L:S.sheet.L,W:S.sheet.W,kerf:S.cut.kerf});
+  var cuts = nz.reduce(function(a,n){
+    return a + n.bins.reduce(function(b,x){ return b+x.cuts.length; },0); },0);
+  var mat = nz.reduce(function(a,n){
+    var area=S.areas.filter(function(x){ return S.stock[x.g].t===n.t && S.stock[x.g].w===n.w; })[0];
+    var rate = area ? S.stock[area.g].rate : autoRate(n.t,n.w);
+    return a + n.bins.length*rate*(S.cut.len/1000);
+  },0) + (nSh ? nSh.sheets.length*S.sheet.price : 0);
+  var cut = cuts*S.cost.cutBar + (nSh ? nSh.items.length*S.cost.cutSheet : 0);
+  var cost = (mat+cut)*(1+S.cost.vat/100);
+  var sp=(m.spans||[])[0];
+  return { name:d.variants[vid].name, parts:sc.parts, boards:sc.boards, metres:sc.metres,
+           bars:bars, waste:waste, kg:sc.kg, cost:cost,
+           span:sp?Math.round(sp.span):0, defl:sp?deflection(sp).d:0 };
+}
+function renderCompare(){
+  var d=DESIGNS[S.designId], tb=document.getElementById('tbCmp'); tb.innerHTML='';
+  Object.keys(d.variants).forEach(function(vid){
+    var v=variantStats(vid), tr=document.createElement('tr');
+    tr.innerHTML='<td>'+v.name+(vid===S.variantId?' ◀':'')+'</td><td class="num">'+v.parts+
+      '</td><td class="num">'+v.boards+'</td><td class="num">'+v.metres.toFixed(1)+
+      ' m</td><td class="num">'+v.bars+'</td><td class="num">'+v.waste.toFixed(0)+
+      '%</td><td class="num">'+v.kg.toFixed(0)+' kg</td><td class="num">'+v.cost.toFixed(0)+
+      '</td><td class="num">'+v.span+' mm</td><td class="num">'+v.defl.toFixed(2)+' mm</td>';
+    tr.onclick=function(){ selectVariant(vid); };
+    tb.appendChild(tr);
+  });
+}
+
+function renderCost(){
+  var C = costing(), tb = document.getElementById('tbCost');
+  tb.innerHTML = '';
+  function row(cells, cls){
+    var tr=document.createElement('tr');
+    if(cls) tr.className=cls;
+    tr.innerHTML = cells.join('');
+    tb.appendChild(tr);
+  }
+  C.lines.forEach(function(l){
+    row(['<td>'+l.what+'</td><td class="dim">'+l.detail+'</td>',
+         '<td class="num">'+l.qty+'</td><td class="dim">'+l.unit+'</td>',
+         '<td class="num">'+l.each.toFixed(2)+'</td>',
+         '<td class="num">'+l.sum.toFixed(0)+'</td>']);
+  });
+  row(['<td>Cutting to size</td><td class="dim">'+C.barCuts+' bar cuts'+
+       (C.sheetCuts? ' + '+C.sheetCuts+' sheet cuts':'')+'</td>',
+       '<td class="num">'+(C.barCuts+C.sheetCuts)+'</td><td class="dim">cut</td>',
+       '<td class="num">'+S.cost.cutBar.toFixed(2)+'</td>',
+       '<td class="num">'+C.cutTotal.toFixed(0)+'</td>']);
+  row(['<td>Subtotal</td><td></td><td></td><td class="dim">ex-VAT</td><td></td>',
+       '<td class="num">'+C.sub.toFixed(0)+'</td>'], 'tot');
+  row(['<td>VAT</td><td></td><td></td><td class="dim">'+S.cost.vat+'%</td><td></td>',
+       '<td class="num">'+C.vat.toFixed(0)+'</td>']);
+  row(['<td><b>Total</b></td><td></td><td></td><td class="dim">inc. VAT</td><td></td>',
+       '<td class="num"><b>ILS '+C.total.toFixed(0)+'</b></td>'], 'tot');
+
+  var cutShare = C.sub ? Math.round(100*C.cutTotal/C.sub) : 0;
+  document.getElementById('costHint').textContent =
+    'material ILS '+C.material.toFixed(0)+' + cutting ILS '+C.cutTotal.toFixed(0)+
+    '  ·  cutting is '+cutShare+'% of the bill';
+  document.getElementById('costNote').innerHTML =
+    '<b>Ballpark, not a quote.</b> Solid stock is priced per linear metre, the way Israeli yards '+
+    'quote it — the default ILS /m is derived from planed pine running about <b>0.29 ILS per metre per cm² '+
+    'of section</b> (3×8 cm ≈ 7 ILS /m, 3×15 cm ≈ 12 ILS /m, Aug 2026, ex-VAT). Sheet default is birch '+
+    'plywood 18 mm at ILS 240 per 244×122, inside the ILS 180–350 range yards quote. Cutting to size runs '+
+    'ILS 2.5–25 per cut depending on the yard and the cut; ILS '+S.cost.cutBar+' is a mid guess for simple '+
+    'cross-cuts. VAT is '+S.cost.vat+'%. <b>Every figure here is editable</b> — put a real quote in and '+
+    'the whole model follows. Hardwood, finger-jointed panel or planing to a non-stock section will '+
+    'all push this up substantially; rough construction pine will pull it down.'+
+    '<br><br><b>Cutting is '+cutShare+'% of this bill.</b> It is charged per cut, so a design\'s '+
+    'part COUNT drives cost nearly as hard as its timber volume — '+
+    (cutShare>30 ? 'at this share, merging parts or accepting fewer, longer members is worth more than shaving millimetres off sections. '
+                 : '')+
+    'Compare the variants tab: the same piece in fewer parts is cheaper twice over, since every '+
+    'board in a glue-up is also a separate cut.';
+}
+
+function renderChecks(){
+  var h=document.getElementById('checkBody'); h.innerHTML='';
+  var res=runChecks(MODEL, SC, NEST, S);
+  var order={fail:0,warn:1,ok:2};
+  res.sort(function(a,b){ return order[a.s]-order[b.s]; });
+  res.forEach(function(c){
+    var row=document.createElement('div'); row.className='chkrow '+c.s;
+    row.innerHTML='<div class="tag">'+c.s+'</div><div class="txt">'+c.t+'</div>'+
+                  (c.v?'<div class="val">'+c.v+'</div>':'');
+    h.appendChild(row);
+  });
+  var f=document.createElement('p'); f.className='sub'; f.style.margin='14px 0 0';
+  f.innerHTML='Deflection uses E = '+E_SOFTWOOD+' MPa (conservative softwood), uniform load, simply '+
+    'supported. Edge/end distances are the usual 3d / 10d rules of thumb for 5 mm screws. '+
+    '<b>Sanity checks, not engineering.</b>';
+  h.appendChild(f);
+}
+
+/* =========================================================================
+   outputs/designfile.js — the round-trip format
+   -------------------------------------------------------------------------
+   Save the INPUTS, regenerate the outputs. The parts array, cut list, nesting
+   and drawings are all derived, so storing them would freeze a snapshot that
+   drifts the moment a design's build() is improved. Reloading the inputs into
+   a newer build gets you the same piece plus every fix since.
+   ========================================================================= */
+var FILE_FORMAT = 1;
+
+function designFile(){
+  /* `head` is an internal marker area for fasteners, not stock anyone buys —
+     keep it out of the file so it cannot generate warnings on load */
+  var stock = {};
+  Object.keys(S.stock).forEach(function(g){ if(g !== 'head') stock[g] = S.stock[g]; });
+  return { furnitureKit: FILE_FORMAT,
+           design: S.designId, variant: S.variantId,
+           params: S.params, stock: stock,
+           cut: S.cut, sheet: S.sheet, cost: S.cost,
+           notes: S.notes };
+}
+
+/* Validates rather than trusts: unknown keys are reported, out-of-range
+   numbers are clamped to the schema, and anything missing falls back to the
+   design's own defaults. Returns the list of things it had to change. */
+function applyDesignFile(obj){
+  if(!obj || typeof obj !== 'object') throw new Error('not a design file');
+  if(obj.furnitureKit && obj.furnitureKit > FILE_FORMAT)
+    throw new Error('file is format v'+obj.furnitureKit+', this build reads v'+FILE_FORMAT);
+  var d = DESIGNS[obj.design];
+  if(!d) throw new Error('unknown design "'+obj.design+'"');
+
+  var notes = [];
+  var vid = (obj.variant && d.variants[obj.variant]) ? obj.variant : Object.keys(d.variants)[0];
+  if(obj.variant && vid !== obj.variant) notes.push('unknown variant "'+obj.variant+'" — used '+vid);
+
+  S.designId = obj.design; S.variantId = vid; S.areas = d.areas;
+  S.params = defaults(d); Object.assign(S.params, d.variants[vid].set);
+  S.stock  = stockDefaults(d);
+  S.notes  = (obj.notes && typeof obj.notes === 'object') ? obj.notes : {};
+  SEL_KEY  = null;
+  document.getElementById('sel').style.display = 'none';
+
+  var fields = {}; d.schema.forEach(function(f){ fields[f.k] = f; });
+  Object.keys(obj.params || {}).forEach(function(k){
+    var f = fields[k], v = obj.params[k];
+    if(!f){ notes.push('ignored unknown parameter "'+k+'"'); return; }
+    if(f.type === 'range'){
+      v = +v;
+      if(!isFinite(v)){ notes.push('ignored non-numeric '+k); return; }
+      var c = Math.min(f.max, Math.max(f.min, v));
+      if(c !== v) notes.push(k+' clamped '+v+' → '+c);
+      S.params[k] = c;
+    } else if(f.type === 'bool'){
+      S.params[k] = !!v;
+    } else if(f.type === 'select'){
+      if(f.options.some(function(o){ return o.v === v; })) S.params[k] = v;
+      else notes.push('ignored out-of-range '+k+' = '+v);
+    }
+  });
+
+  Object.keys(obj.stock || {}).forEach(function(g){
+    if(g === 'head') return;
+    if(!S.stock[g]){ notes.push('ignored stock area "'+g+'"'); return; }
+    var src = obj.stock[g] || {};
+    if(+src.t >= 6) S.stock[g].t = +src.t;
+    else if(src.t !== undefined) notes.push('ignored '+g+' thickness = '+src.t);
+    if(+src.w >= 20) S.stock[g].w = +src.w;
+    else if(src.w !== undefined) notes.push('ignored '+g+' width = '+src.w);
+    if(+src.rate >= 0) S.stock[g].rate = +src.rate;
+    else {
+      S.stock[g].rate = autoRate(S.stock[g].t, S.stock[g].w);
+      if(src.rate !== undefined) notes.push('ignored '+g+' rate = '+src.rate);
+    }
+  });
+
+  [['cut',['len','kerf','density'],1],
+   ['sheet',['t','L','W','price','kerf'],0],
+   ['cost',['vat','cutBar','cutSheet'],0]].forEach(function(spec){
+    var src = obj[spec[0]] || {};
+    spec[1].forEach(function(k){
+      var v = +src[k];
+      if(isFinite(v) && v >= spec[2]) S[spec[0]][k] = v;
+      else if(src[k] !== undefined) notes.push('ignored '+spec[0]+'.'+k+' = '+src[k]);
+    });
+  });
+
+  document.getElementById('dTitle').textContent = d.name;
+  document.getElementById('dBlurb').textContent = d.blurb;
+  document.getElementById('dProv').textContent =
+    'v'+d.info.version+' · '+d.info.license+' · designer '+d.info.designer;
+  areaSyncers = [];
+  renderDesigns(); renderVariants(); renderParams(); renderAreas();
+  rebuild(); fitView(); draw();
+  return notes;
+}
+
+/* ---- export ---- */
+var EXPORTS = [
+  { k:'design.json', label:'Design file — JSON  ⟲', file:'design.json',
+    make:function(){ return JSON.stringify(designFile(), null, 2); } },
+  { k:'cut.csv',   label:'Schedule — CSV',        file:'schedule.csv',
+    make:function(){ return exportCSV(SC, REPORT); } },
+  { k:'cut.md',    label:'Schedule — Markdown',   file:'schedule.md',
+    make:function(){ return exportMD(SC, DESIGNS[S.designId].name+' '+S.variantId+' — '+
+                                     REPORTS[REPORT].label.toLowerCase()+' schedule', S); } },
+  { k:'parts.json',label:'Parts array — JSON',    file:'parts.json',
+    make:function(){ return exportJSON(MODEL, S); } },
+  { k:'stock.json',label:'Stock by area — JSON',  file:'stock.json',
+    make:function(){ return JSON.stringify({design:S.designId, variant:S.variantId,
+                       stock:S.stock, cutting:S.cut, sheet:S.sheet,
+                       pricing:S.cost, currency:'ILS', cost:costing()}, null, 2); } },
+  { k:'freecad.py',label:'FreeCAD macro — .py',   file:'freecad.py',
+    make:function(){ return exportFreeCAD(MODEL, S); } },
+  { k:'fusion.py', label:'Fusion 360 — build assembly', file:'fusion-build.py',
+    make:function(){ return exportFusion(MODEL, S); } },
+  { k:'fusionread.py', label:'Fusion 360 — read back  ⟲', file:'fusion-readback.py',
+    make:function(){ return exportFusionReadback(MODEL, S); } },
+  { k:'draw.svg',  label:'Drawing — SVG',         file:'drawing.svg',
+    make:function(){ return svgDrawing(MODEL, {title:DESIGNS[S.designId].name+' — '+
+      DESIGNS[S.designId].variants[S.variantId].name,
+      stock:S.areas.map(function(a){ return a.label+' '+S.stock[a.g].t+'×'+S.stock[a.g].w; }).join(' · ')}); } },
+  { k:'nest.txt',  label:'Cutting plan — text',   file:'cutting-plan.txt',
+    make:function(){
+      var L=[DESIGNS[S.designId].name+' '+S.variantId+' — cutting plan',
+             S.cut.len+' mm bars, '+S.cut.kerf+' mm kerf',''];
+      NEST.forEach(function(g){
+        L.push('== '+g.sec+' =='.replace(/=+$/,''));
+        g.bins.forEach(function(b,i){
+          var used=b.cuts.reduce(function(a,c){ return a+c.len+S.cut.kerf; },0);
+          L.push('  bar '+String(i+1)+'  '+
+                 b.cuts.map(function(c){ return c.len+' ('+c.name+')'; }).join('  +  ')+
+                 '   [offcut '+Math.round(S.cut.len-used)+']');
+        });
+        L.push('');
+      });
+      return L.join('\n');
+    } }
+];
+function renderExportList(){
+  var h=document.getElementById('expList'); h.innerHTML='';
+  EXPORTS.forEach(function(e){
+    var b=document.createElement('button');
+    b.textContent=e.label; b.className=(e.k===EXPKIND?'on':'');
+    b.onclick=function(){ EXPKIND=e.k; renderExportList(); renderExport(); };
+    h.appendChild(b);
+  });
+}
+function currentExport(){ return EXPORTS.filter(function(e){ return e.k===EXPKIND; })[0] || EXPORTS[0]; }
+function renderExport(){
+  document.getElementById('expText').textContent = currentExport().make();
+  document.getElementById('expMsg').textContent='';
+}
+
+/* ---- rebuild ---- */
+function rebuild(){
+  try{
+    document.getElementById('err').style.display='none';
+    MODEL = buildModel(S.designId, S.variantId, S.params, S.stock);
+    SC        = schedule(MODEL.parts, REPORT, S.cut.density);
+    NEST      = nest(MODEL.parts, S.cut);
+    SHEETNEST = nestSheets(MODEL.parts, { t:S.sheet.t, L:S.sheet.L, W:S.sheet.W, kerf:S.cut.kerf });
+
+    var bars=NEST.reduce(function(a,n){ return a+n.bins.length; },0);
+    var cap=bars*S.cut.len;
+    var nSheets = SHEETNEST ? SHEETNEST.sheets.length : 0;
+    var cost = costing().total;
+
+    document.getElementById('stPc').textContent = SC.parts;
+    document.getElementById('stBd').textContent = SC.boards;
+    document.getElementById('stM').textContent  = SC.metres.toFixed(1)+' m';
+    document.getElementById('stB').textContent  = bars+' × '+S.cut.len +
+      (nSheets ? '  +  '+nSheets+' sheet'+(nSheets>1?'s':'') : '');
+    document.getElementById('stW').textContent  = cap?Math.round((1-SC.metres*1000/cap)*100)+'%':'—';
+    document.getElementById('stKg').textContent = SC.kg.toFixed(0)+' kg';
+    document.getElementById('stC').textContent  = 'ILS '+cost.toFixed(0);
+
+    var d=DESIGNS[S.designId];
+    document.getElementById('hudT').textContent = d.name+' — '+d.variants[S.variantId].name;
+    document.getElementById('hudD').innerHTML = (MODEL.headline||'')+'<br>'+(MODEL.headline2||'');
+
+    interferences(MODEL.parts);          /* tags parts with .clash for the viewer */
+    if(gl) buildBuffers(MODEL.parts);
+    areaSyncers.forEach(function(f){ f(); });
+    renderSheetStock();
+    renderCut(); renderNest(); renderCompare(); renderChecks(); renderCost(); renderExport();
+    if(VIEWTAB==='draw') renderDrawing(); else draw();
+  }catch(e){
+    var el=document.getElementById('err');
+    el.style.display='grid';
+    el.textContent='Build failed — '+e.message;
+    if(window.console) console.error(e);
+  }
+}
+function renderDrawing(){
+  document.getElementById('svgWrap').innerHTML = svgDrawing(MODEL, {
+    title: DESIGNS[S.designId].name+' — '+DESIGNS[S.designId].variants[S.variantId].name,
+    stock: S.areas.map(function(a){ return a.label+' '+S.stock[a.g].t+'×'+S.stock[a.g].w; }).join(' · ')
+  });
+}
+
+/* ---- navigation ---- */
+var MODE='orbit', drag=null;
+host.addEventListener('contextmenu', function(e){ e.preventDefault(); });
+host.addEventListener('pointerdown', function(e){
+  if(VIEWTAB!=='3d') return;
+  drag={x:e.clientX,y:e.clientY,pan:(MODE==='pan'||e.button===2||e.button===1||e.shiftKey),
+        ox:e.clientX, oy:e.clientY, moved:0};
+  host.setPointerCapture(e.pointerId);
+});
+host.addEventListener('pointerup', function(e){
+  /* a click, not the end of an orbit */
+  if(VIEWTAB==='3d' && drag && drag.moved < 5 && e.button===0){
+    var i = pickAt(e.clientX, e.clientY);
+    selectPart(i===null ? null : MODEL.parts[i]);
+  }
+});
+host.addEventListener('pointermove', function(e){
+  if(!drag) return;
+  var dx=e.clientX-drag.x, dy=e.clientY-drag.y;
+  if(drag.pan){
+    var eye=camPos(), f=nrm(vsub(target,eye)), r=nrm(vcross(f,[0,0,1])), u=vcross(r,f);
+    var k=dist*0.0013;
+    target[0]+=(-dx*r[0]+dy*u[0])*k;
+    target[1]+=(-dx*r[1]+dy*u[1])*k;
+    target[2]+=(-dx*r[2]+dy*u[2])*k;
+  } else {
+    az-=dx*0.006;
+    el=Math.max(-0.35, Math.min(1.45, el+dy*0.005));
+  }
+  drag.moved = Math.max(drag.moved||0,
+    Math.abs(e.clientX-drag.ox) + Math.abs(e.clientY-drag.oy));
+  drag.x=e.clientX; drag.y=e.clientY; draw();
+});
+window.addEventListener('pointerup', function(){ drag=null; });
+host.addEventListener('wheel', function(e){
+  if(VIEWTAB!=='3d') return;
+  e.preventDefault();
+  setDist(dist*(1+(e.deltaY>0?1:-1)*0.09));
+}, {passive:false});
+
+function setDist(d){
+  dist=Math.max(700, Math.min(9000, d));
+  document.getElementById('sZ').value=Math.round(dist);
+  document.getElementById('oZ').textContent=Math.round(dist)+' mm';
+  draw();
+}
+function nudge(a,s){ target[a]+=s*100; draw(); }
+function fitView(keepAngle){
+  if(!keepAngle){ az=-0.75; el=0.42; }
+  if(BBOX){
+    target = BBOX.cen.slice();
+    setDist(Math.max(700, BBOX.radius/Math.tan(0.26)*1.25));
+  } else {
+    var h=S.params.H || S.params.Hback || 900;
+    target=[0,0,h*0.42];
+    setDist(Math.max(2200, (S.params.L||1600)*1.9));
+  }
+}
+document.querySelectorAll('.pad button').forEach(function(b){
+  b.onclick=function(){ var a=b.dataset.ax; nudge({x:0,y:1,z:2}[a[0]], a[1]==='+'?1:-1); };
+});
+document.querySelectorAll('#segMode button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('#segMode button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on'); MODE=b.dataset.m;
+  };
+});
+window.addEventListener('keydown', function(e){
+  var m={ArrowLeft:[0,-1],ArrowRight:[0,1],ArrowDown:[1,-1],ArrowUp:[1,1],PageDown:[2,-1],PageUp:[2,1]};
+  if(m[e.key] && document.activeElement.tagName!=='INPUT'){ e.preventDefault(); nudge(m[e.key][0], m[e.key][1]); }
+});
+document.getElementById('sZ').oninput=function(e){ setDist(+e.target.value); };
+document.querySelectorAll('[data-view]').forEach(function(b){
+  b.onclick=function(){
+    var v=b.dataset.view;
+    if(v==='iso'||v==='reset'){ az=-0.75; el=0.42; }
+    if(v==='front'){ az=Math.PI/2; el=0.03; }
+    if(v==='side' ){ az=0;         el=0.03; }
+    if(v==='top'  ){ az=Math.PI/2; el=1.44; }
+    fitView(true);
+    draw();
+  };
+});
+document.getElementById('sX').oninput=function(e){
+  explode=+e.target.value;
+  document.getElementById('oX').textContent=explode+' mm';
+  draw();
+};
+document.getElementById('cLams').onchange=function(e){
+  showLams=e.target.checked;
+  if(gl) buildBuffers(MODEL.parts);
+  draw();
+};
+document.getElementById('cEdges').onchange=function(e){ showEdges=e.target.checked; draw(); };
+document.getElementById('cGrid').onchange =function(e){ showGrid =e.target.checked; draw(); };
+window.addEventListener('resize', function(){ if(VIEWTAB==='3d') draw(); });
+
+document.querySelectorAll('#vtabs button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('#vtabs button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on'); VIEWTAB=b.dataset.vt;
+    var isDraw=VIEWTAB==='draw';
+    document.getElementById('svgWrap').style.display=isDraw?'block':'none';
+    cv.style.display=isDraw?'none':'block';
+    document.getElementById('tip').style.display=isDraw?'none':'block';
+    document.getElementById('hud').style.display=isDraw?'none':'block';
+    if(isDraw) renderDrawing(); else draw();
+  };
+});
+document.querySelectorAll('#ptabs button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('#ptabs button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on');
+    var id={cut:'paneCut',nest:'paneNest',compare:'paneCompare',checks:'paneChecks',
+            cost:'paneCost',export:'paneExport'}[b.dataset.p];
+    document.querySelectorAll('.pane').forEach(function(p){ p.classList.toggle('on', p.id===id); });
+  };
+});
+document.querySelectorAll('#segReport button').forEach(function(b){
+  b.onclick=function(){
+    document.querySelectorAll('#segReport button').forEach(function(x){ x.classList.remove('on'); });
+    b.classList.add('on'); REPORT=b.dataset.r;
+    SC = schedule(MODEL.parts, REPORT, S.cut.density);
+    renderCut(); renderExport();
+  };
+});
+
+function numField(id,key){
+  var el=document.getElementById(id);
+  el.value=S.cut[key];
+  el.oninput=function(){ if(+el.value>0){ S.cut[key]=+el.value; rebuild(); } };
+}
+numField('nLen','len'); numField('nKerf','kerf'); numField('nDens','density');
+[['cVat','vat',0],['cCutBar','cutBar',0],['cCutSheet','cutSheet',0]].forEach(function(pair){
+  var el=document.getElementById(pair[0]);
+  el.value=S.cost[pair[1]];
+  el.oninput=function(){ if(+el.value>=pair[2]){ S.cost[pair[1]]=+el.value; rebuild(); } };
+});
+[['shT','t',6],['shP','price',0],['shL','L',300],['shW','W',300]].forEach(function(pair){
+  var el=document.getElementById(pair[0]);
+  el.value = S.sheet[pair[1]];
+  el.oninput=function(){ if(+el.value >= pair[2]){ S.sheet[pair[1]] = +el.value; rebuild(); } };
+});
+
+document.getElementById('btnCopy').onclick=function(){
+  var t=currentExport().make(), m=document.getElementById('expMsg');
+  if(navigator.clipboard){
+    navigator.clipboard.writeText(t).then(function(){ m.textContent='copied'; },
+                                          function(){ m.textContent='select the text below and copy'; });
+  } else m.textContent='select the text below and copy';
+};
+function doImport(text, label){
+  var msg = document.getElementById('impMsg');
+  msg.className = 'msg';
+  try{
+    var notes = applyDesignFile(JSON.parse(text));
+    document.querySelectorAll('#ptabs button').forEach(function(x){ x.classList.remove('on'); });
+    msg.textContent = 'loaded '+label+(notes.length ? ' — '+notes.length+' adjustment(s): '+notes.join('; ') : ' — exact');
+    document.querySelectorAll('#ptabs button').forEach(function(x){
+      if(x.dataset.p==='export') x.classList.add('on'); });
+  }catch(e){
+    msg.className = 'msg bad';
+    msg.textContent = 'could not load — '+e.message;
+  }
+}
+document.getElementById('btnImport').onclick=function(){
+  var t=document.getElementById('impText').value.trim();
+  if(!t){ document.getElementById('impMsg').textContent='paste a design file first'; return; }
+  doImport(t, 'pasted design');
+};
+document.getElementById('impFile').onchange=function(e){
+  var f=e.target.files && e.target.files[0];
+  if(!f) return;
+  var r=new FileReader();
+  r.onload=function(){ doImport(String(r.result), f.name); };
+  r.onerror=function(){ document.getElementById('impMsg').textContent='could not read the file'; };
+  r.readAsText(f);
+};
+
+/* Saving has two homes. Opened as a local file the page can make its own
+   blob download; published as an Artifact the sandbox makes that inert and the
+   only route is the downloads capability, where the viewer confirms each save.
+   The capability's allowlist also refuses some extensions outright — .py is
+   not on it at all — so a refusal falls back to .txt rather than failing. */
+function blobSave(filename, text){
+  var b=new Blob([text],{type:'text/plain'});
+  var a=document.createElement('a');
+  a.href=URL.createObjectURL(b); a.download=filename; a.click();
+  setTimeout(function(){ URL.revokeObjectURL(a.href); },1000);
+}
+async function offerSave(filename, text, msg){
+  var dl = null;
+  try{ if(typeof claude !== 'undefined') dl = await claude.use('downloads'); }catch(e){}
+  if(!dl){ blobSave(filename, text); msg.textContent='downloaded '+filename; return; }
+  try{
+    await dl.save({ filename:filename, data:text });
+    msg.textContent='saved '+filename;
+  }catch(err){
+    var code = err && err.code;
+    if(code==='rejected_extension' || code==='extension_not_enabled'){
+      var alt = filename.replace(/\.[^.]+$/,'') + '.txt';
+      try{
+        await dl.save({ filename:alt, data:text });
+        msg.textContent='saved as '+alt+' — rename it to '+filename;
+        return;
+      }catch(e2){ err = e2; code = e2 && e2.code; }
+    }
+    msg.textContent = code==='declined'    ? 'save cancelled'
+                    : code==='too_large'   ? 'too large to save — use Copy'
+                    : code==='rate_limited'? 'too many saves at once — try again'
+                    : 'could not save — use Copy'+(code?' ('+code+')':'');
+  }
+}
+document.getElementById('btnDl').onclick=function(){
+  var e=currentExport();
+  offerSave(S.designId+'-'+S.variantId+'-'+e.file, e.make(),
+            document.getElementById('expMsg'));
+};
+
+/* ---- boot ---- */
+renderExportList();
+if(initGL()){
+  selectDesign('bench');
+} else {
+  document.getElementById('err').style.display='grid';
+  document.getElementById('err').textContent = GLFAIL +
+    ' The schedule and exports still work; only the 3D view needs it.';
+  selectDesign('bench');
+}
+</script>
+
+</body></html>

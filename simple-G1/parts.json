@@ -1,0 +1,659 @@
+{
+  "parts": [
+    {
+      "name": "Front leg",
+      "group": "post",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        95,
+        418
+      ],
+      "pos": [
+        -557.5,
+        202.5,
+        209
+      ],
+      "ex": [
+        -1,
+        1,
+        -0.4
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 418,
+      "clash": false
+    },
+    {
+      "name": "Rear upright",
+      "group": "post",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        95,
+        870
+      ],
+      "pos": [
+        -557.5,
+        -202.5,
+        435
+      ],
+      "ex": [
+        -1,
+        -1,
+        0
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 870,
+      "clash": false
+    },
+    {
+      "name": "Side seat rail",
+      "group": "rail",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        360,
+        95
+      ],
+      "pos": [
+        -512.5,
+        0,
+        370.5
+      ],
+      "ex": [
+        -1,
+        0,
+        -0.3
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 360,
+      "clash": false
+    },
+    {
+      "name": "Front leg",
+      "group": "post",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        95,
+        418
+      ],
+      "pos": [
+        557.5,
+        202.5,
+        209
+      ],
+      "ex": [
+        1,
+        1,
+        -0.4
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 418,
+      "clash": false
+    },
+    {
+      "name": "Rear upright",
+      "group": "post",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        95,
+        870
+      ],
+      "pos": [
+        557.5,
+        -202.5,
+        435
+      ],
+      "ex": [
+        1,
+        -1,
+        0
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 870,
+      "clash": false
+    },
+    {
+      "name": "Side seat rail",
+      "group": "rail",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        360,
+        95
+      ],
+      "pos": [
+        512.5,
+        0,
+        370.5
+      ],
+      "ex": [
+        1,
+        0,
+        -0.3
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 360,
+      "clash": false
+    },
+    {
+      "name": "Long seat rail",
+      "group": "rail",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        45,
+        95
+      ],
+      "pos": [
+        0,
+        -202.5,
+        370.5
+      ],
+      "ex": [
+        0,
+        -1,
+        -0.5
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Long seat rail",
+      "group": "rail",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        45,
+        95
+      ],
+      "pos": [
+        0,
+        202.5,
+        370.5
+      ],
+      "ex": [
+        0,
+        1,
+        -0.5
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Intermediate bearer",
+      "group": "rail",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        45,
+        360,
+        95
+      ],
+      "pos": [
+        0,
+        0,
+        370.5
+      ],
+      "ex": [
+        0,
+        0,
+        -1
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        45,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        45,
+        95
+      ],
+      "sec": "45×95",
+      "cut": 360,
+      "clash": false
+    },
+    {
+      "name": "Seat board",
+      "group": "slat",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        95,
+        32
+      ],
+      "pos": [
+        0,
+        -103.5,
+        434
+      ],
+      "ex": [
+        0,
+        0,
+        1
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        32,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        32,
+        95
+      ],
+      "sec": "32×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Seat board",
+      "group": "slat",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        95,
+        32
+      ],
+      "pos": [
+        0,
+        -1.5,
+        434
+      ],
+      "ex": [
+        0,
+        0,
+        1
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        32,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        32,
+        95
+      ],
+      "sec": "32×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Seat board",
+      "group": "slat",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        95,
+        32
+      ],
+      "pos": [
+        0,
+        100.5,
+        434
+      ],
+      "ex": [
+        0,
+        0,
+        1
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        32,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        32,
+        95
+      ],
+      "sec": "32×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Seat board",
+      "group": "slat",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1070,
+        95,
+        32
+      ],
+      "pos": [
+        0,
+        202.5,
+        434
+      ],
+      "ex": [
+        0,
+        0,
+        1
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        32,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        32,
+        95
+      ],
+      "sec": "32×95",
+      "cut": 1070,
+      "clash": false
+    },
+    {
+      "name": "Back board",
+      "group": "back",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1160,
+        22,
+        95
+      ],
+      "pos": [
+        0,
+        -261,
+        537.5
+      ],
+      "ex": [
+        0,
+        -1,
+        0.5
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        22,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        22,
+        95
+      ],
+      "sec": "22×95",
+      "cut": 1160,
+      "clash": false
+    },
+    {
+      "name": "Back board",
+      "group": "back",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1160,
+        22,
+        95
+      ],
+      "pos": [
+        0,
+        -261,
+        680
+      ],
+      "ex": [
+        0,
+        -1,
+        0.5
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        22,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        22,
+        95
+      ],
+      "sec": "22×95",
+      "cut": 1160,
+      "clash": false
+    },
+    {
+      "name": "Back board",
+      "group": "back",
+      "kind": "linear",
+      "count": 1,
+      "size": [
+        1160,
+        22,
+        95
+      ],
+      "pos": [
+        0,
+        -261,
+        822.5
+      ],
+      "ex": [
+        0,
+        -1,
+        0.5
+      ],
+      "rot": 0,
+      "lam": 1,
+      "stock": [
+        22,
+        95
+      ],
+      "cut1": 0,
+      "cut2": 0,
+      "section": [
+        22,
+        95
+      ],
+      "sec": "22×95",
+      "cut": 1160,
+      "clash": false
+    }
+  ],
+  "spans": [
+    {
+      "label": "Seat boards",
+      "span": 490,
+      "b": 95,
+      "h": 32,
+      "tributary": 102,
+      "load": 2
+    }
+  ],
+  "headline": "1160 × 500 mm · seat 450 · back 870 mm",
+  "headline2": "4 seat boards · 3 back boards · 1 intermediate bearers · square cuts",
+  "hardware": [
+    {
+      "id": "HW-S1",
+      "name": "Exterior structural wood screws",
+      "qty": 20,
+      "spec": "6 × 110 mm, manufacturer-rated for frame joints",
+      "note": "Frame connections: two per rail end; four per intermediate bearer. Modern arms: two per end and lower ties: two per end. Verify screw angle and embedment at each butt joint."
+    },
+    {
+      "id": "HW-S2",
+      "name": "Exterior seat screws",
+      "qty": 24,
+      "spec": "5 × 70 mm",
+      "note": "Two per seat board at each end rail and each intermediate bearer; stagger to avoid splitting."
+    },
+    {
+      "id": "HW-S3",
+      "name": "Exterior back screws",
+      "qty": 12,
+      "spec": "5 × 60 mm",
+      "note": "Two per board at each rear upright; holes on upright centre lines."
+    },
+    {
+      "id": "HW-S4",
+      "name": "Exterior-rated frame corner brackets",
+      "qty": 8,
+      "spec": "Galvanized or stainless 50 × 50 mm minimum angle, compatible structural fixings",
+      "note": "Reinforce seat perimeter and modern lower ties against racking; choose rated brackets matching stock thickness."
+    },
+    {
+      "id": "HW-S5",
+      "name": "Bracket screws",
+      "qty": 32,
+      "spec": "Bracket-manufacturer approved exterior connector screws",
+      "note": "Four per bracket allowance; follow actual bracket hole and load specification."
+    },
+    {
+      "id": "HW-S6",
+      "name": "Foot pads",
+      "qty": 4,
+      "spec": "Non-absorbent exterior feet fitting 45 × 95 mm posts",
+      "note": "Pad thickness adds to the overall height."
+    }
+  ],
+  "fabrication": [
+    {
+      "part": "All timber",
+      "detail": "All ends square; no hidden laps, rebates or compound mitres. Dimensions are finished stock sizes. Break exposed edges 2–3 mm."
+    },
+    {
+      "part": "Frame joints",
+      "detail": "Rails butt against posts and bearer ends butt against long rails. Brackets are required against racking; timber solids do not model screw holes or bracket plates."
+    },
+    {
+      "part": "Seat board drilling",
+      "detail": "Two holes per support, across each board width at 20 mm from its edges. Support stations measured from inner seat left end: 22.5 (end support), 535, 1048 mm (end support). Move end holes onto actual side rail centre lines; do not drill at the board end."
+    },
+    {
+      "part": "Back board drilling",
+      "detail": "Upright centre lines at 22.5 and 1137.5 mm from board left end. Two screws per upright, 20 mm from each long edge."
+    },
+    {
+      "part": "Design scope",
+      "detail": "Reference-inspired new frame geometry. Connection capacity, species/grade and user loading require workshop verification; no tested load rating is claimed."
+    }
+  ],
+  "warnings": []
+}

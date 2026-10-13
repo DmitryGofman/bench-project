@@ -1,0 +1,15 @@
+Simple garden bench G1 — cutting plan
+2400 mm bars, 3 mm kerf
+
+== 45×95 
+  bar 1  1070 (Long seat rail)  +  1070 (Long seat rail)   [offcut 254]
+  bar 2  870 (Rear upright)  +  870 (Rear upright)  +  418 (Front leg)   [offcut 233]
+  bar 3  418 (Front leg)  +  360 (Side seat rail)  +  360 (Side seat rail)  +  360 (Intermediate bearer)   [offcut 890]
+
+== 32×95 
+  bar 1  1070 (Seat board)  +  1070 (Seat board)   [offcut 254]
+  bar 2  1070 (Seat board)  +  1070 (Seat board)   [offcut 254]
+
+== 22×95 
+  bar 1  1160 (Back board)  +  1160 (Back board)   [offcut 74]
+  bar 2  1160 (Back board)   [offcut 1237]

@@ -1,0 +1,20 @@
+# Furniture Kit — FreeCAD macro. Units mm. Timber geometry only; hardware is scheduled separately.
+import FreeCAD as App, Part, json, math
+doc=App.newDocument("BenchWorkshop")
+data=json.loads("[{\"name\":\"Front leg\",\"pos\":[-557.5,202.5,209],\"size\":[45,95,418],\"rot\":0,\"poly\":[[-47.5,-209],[-47.5,209],[47.5,209],[47.5,-209]],\"holes\":[],\"alongX\":false},{\"name\":\"Rear upright\",\"pos\":[-557.5,-202.5,435],\"size\":[45,95,870],\"rot\":0,\"poly\":[[-47.5,-435],[-47.5,435],[47.5,435],[47.5,-435]],\"holes\":[],\"alongX\":false},{\"name\":\"Side seat rail\",\"pos\":[-512.5,0,370.5],\"size\":[45,360,95],\"rot\":0,\"poly\":[[-180,-47.5],[-180,47.5],[180,47.5],[180,-47.5]],\"holes\":[],\"alongX\":false},{\"name\":\"Front leg\",\"pos\":[557.5,202.5,209],\"size\":[45,95,418],\"rot\":0,\"poly\":[[-47.5,-209],[-47.5,209],[47.5,209],[47.5,-209]],\"holes\":[],\"alongX\":false},{\"name\":\"Rear upright\",\"pos\":[557.5,-202.5,435],\"size\":[45,95,870],\"rot\":0,\"poly\":[[-47.5,-435],[-47.5,435],[47.5,435],[47.5,-435]],\"holes\":[],\"alongX\":false},{\"name\":\"Side seat rail\",\"pos\":[512.5,0,370.5],\"size\":[45,360,95],\"rot\":0,\"poly\":[[-180,-47.5],[-180,47.5],[180,47.5],[180,-47.5]],\"holes\":[],\"alongX\":false},{\"name\":\"Long seat rail\",\"pos\":[0,-202.5,370.5],\"size\":[1070,45,95],\"rot\":0,\"poly\":[[-22.5,-47.5],[-22.5,47.5],[22.5,47.5],[22.5,-47.5]],\"holes\":[],\"alongX\":true},{\"name\":\"Long seat rail\",\"pos\":[0,202.5,370.5],\"size\":[1070,45,95],\"rot\":0,\"poly\":[[-22.5,-47.5],[-22.5,47.5],[22.5,47.5],[22.5,-47.5]],\"holes\":[],\"alongX\":true},{\"name\":\"Intermediate bearer\",\"pos\":[0,0,370.5],\"size\":[45,360,95],\"rot\":0,\"poly\":[[-180,-47.5],[-180,47.5],[180,47.5],[180,-47.5]],\"holes\":[],\"alongX\":false},{\"name\":\"Seat board\",\"pos\":[0,-103.5,434],\"size\":[1070,95,32],\"rot\":0,\"poly\":[[-47.5,-16],[-47.5,16],[47.5,16],[47.5,-16]],\"holes\":[],\"alongX\":true},{\"name\":\"Seat board\",\"pos\":[0,-1.5,434],\"size\":[1070,95,32],\"rot\":0,\"poly\":[[-47.5,-16],[-47.5,16],[47.5,16],[47.5,-16]],\"holes\":[],\"alongX\":true},{\"name\":\"Seat board\",\"pos\":[0,100.5,434],\"size\":[1070,95,32],\"rot\":0,\"poly\":[[-47.5,-16],[-47.5,16],[47.5,16],[47.5,-16]],\"holes\":[],\"alongX\":true},{\"name\":\"Seat board\",\"pos\":[0,202.5,434],\"size\":[1070,95,32],\"rot\":0,\"poly\":[[-47.5,-16],[-47.5,16],[47.5,16],[47.5,-16]],\"holes\":[],\"alongX\":true},{\"name\":\"Back board\",\"pos\":[0,-261,537.5],\"size\":[1160,22,95],\"rot\":0,\"poly\":[[-11,-47.5],[-11,47.5],[11,47.5],[11,-47.5]],\"holes\":[],\"alongX\":true},{\"name\":\"Back board\",\"pos\":[0,-261,680],\"size\":[1160,22,95],\"rot\":0,\"poly\":[[-11,-47.5],[-11,47.5],[11,47.5],[11,-47.5]],\"holes\":[],\"alongX\":true},{\"name\":\"Back board\",\"pos\":[0,-261,822.5],\"size\":[1160,22,95],\"rot\":0,\"poly\":[[-11,-47.5],[-11,47.5],[11,47.5],[11,-47.5]],\"holes\":[],\"alongX\":true}]")
+for i,p in enumerate(data):
+    t=p["size"][0]
+    vs=[App.Vector(-t/2,q[0],q[1]) for q in p["poly"]]
+    wire=Part.makePolygon(vs+[vs[0]])
+    shape=Part.Face(Part.Wire(wire.Edges)).extrude(App.Vector(t,0,0))
+    for h in p["holes"]:
+        tool=Part.makeCylinder(h["diameter"]/2,t+2,App.Vector(-t/2-1,h["y"],h["z"]),App.Vector(1,0,0))
+        shape=shape.cut(tool)
+    shape.rotate(App.Vector(0,0,0),App.Vector(1,0,0),p["rot"]*180/math.pi)
+    shape.translate(App.Vector(*p["pos"]))
+    obj=doc.addObject("PartDesign::Feature","Timber_%03d"%i)
+    obj.Label=p["name"]
+    obj.Shape=shape
+doc.recompute()
+Gui.activeDocument().activeView().viewAxonometric()
+Gui.activeDocument().activeView().fitAll()

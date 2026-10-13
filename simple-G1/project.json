@@ -1,0 +1,52 @@
+{
+  "furnitureKit": 1,
+  "design": "simple",
+  "variant": "G1",
+  "params": {
+    "L": 1160,
+    "D": 500,
+    "Hseat": 450,
+    "Hback": 870,
+    "seatGap": 6
+  },
+  "stock": {
+    "post": {
+      "t": 45,
+      "w": 95,
+      "rate": 12.825
+    },
+    "rail": {
+      "t": 45,
+      "w": 95,
+      "rate": 12.825
+    },
+    "slat": {
+      "t": 32,
+      "w": 95,
+      "rate": 9.12
+    },
+    "back": {
+      "t": 22,
+      "w": 95,
+      "rate": 6.2700000000000005
+    }
+  },
+  "cut": {
+    "len": 2400,
+    "kerf": 3,
+    "density": 500
+  },
+  "sheet": {
+    "t": 18,
+    "L": 2440,
+    "W": 1220,
+    "price": 240,
+    "kerf": 3
+  },
+  "cost": {
+    "vat": 18,
+    "cutBar": 3,
+    "cutSheet": 12
+  },
+  "notes": {}
+}
