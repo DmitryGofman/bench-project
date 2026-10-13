@@ -1,0 +1,36 @@
+file,part,group,side,X_mm,Y_mm,Z_mm,volume_mm3
+R1_R,R1 · Rear front leg,rail,R,68.2,82.4,7.6,12807.0
+R1_L,R1 · Rear front leg,rail,L,68.2,82.4,7.6,12807.0
+R2_R,R2 · Rear back leg,rail,R,25.9,82.4,7.6,11100.0
+R2_L,R2 · Rear back leg,rail,L,25.9,82.4,7.6,11100.0
+R3_R,R3 · Rear seat bearer,rail,R,73.7,17.8,7.6,9680.0
+R3_L,R3 · Rear seat bearer,rail,L,73.7,17.8,7.6,9680.0
+R4_R,R4 · Rear low tie,rail,R,87.0,17.8,7.6,11670.0
+R4_L,R4 · Rear low tie,rail,L,87.0,17.8,7.6,11670.0
+R5_R,R5 · Rear anti-tip foot,rail,R,50.0,17.8,7.6,6731.0
+R5_L,R5 · Rear anti-tip foot,rail,L,50.0,17.8,7.6,6731.0
+F1_R,F1 · Front long leg,rail,R,96.3,142.4,7.6,21561.0
+F1_L,F1 · Front long leg,rail,L,96.3,142.4,7.6,21561.0
+F2_R,F2 · Front seat bearer,rail,R,56.0,17.8,7.6,7499.0
+F2_L,F2 · Front seat bearer,rail,L,56.0,17.8,7.6,7499.0
+F3_R,F3 · Front diagonal brace,rail,R,41.6,27.2,7.6,4098.0
+F3_L,F3 · Front diagonal brace,rail,L,41.6,27.2,7.6,4098.0
+T1_R,T1 · Table / back bearer,rail,R,93.8,17.8,7.6,12267.0
+T1_L,T1 · Table / back bearer,rail,L,93.8,17.8,7.6,12267.0
+T2_R,T2 · Pivot extension,rail,R,30.3,78.8,7.6,10371.0
+T2_L,T2 · Pivot extension,rail,L,30.3,78.8,7.6,10371.0
+S1_R,S1 · Bench bearing stop,stop,R,16.0,44.5,7.6,5378.0
+S1_L,S1 · Bench bearing stop,stop,L,16.0,44.5,7.6,5378.0
+S2-1,S2 · Front seat board,slat,C,154.8,17.8,7.6,20897.0
+S3-1,S3 · Rear seat board,slat,C,122.0,17.8,7.6,16482.0
+S2-2,S2 · Front seat board,slat,C,154.8,17.8,7.6,20897.0
+S3-2,S3 · Rear seat board,slat,C,122.0,17.8,7.6,16460.0
+S4-1,S4 · Table / back board,slat,C,190.0,17.8,7.6,25659.0
+S4-2,S4 · Table / back board,slat,C,190.0,17.8,7.6,25659.0
+S4-3,S4 · Table / back board,slat,C,190.0,17.8,7.6,25637.0
+S4-4,S4 · Table / back board,slat,C,190.0,17.8,7.6,25637.0
+S4-5,S4 · Table / back board,slat,C,190.0,17.8,7.6,25659.0
+T4_R,T4 · Table spread stop,stop,R,11.8,25.4,7.6,1481.0
+T4_L,T4 · Table spread stop,stop,L,11.8,25.4,7.6,1481.0
+T5_R,T5 · Bench stop wedge,stop,R,38.0,17.3,7.6,3114.0
+T5_L,T5 · Bench stop wedge,stop,L,38.0,17.3,7.6,3114.0
