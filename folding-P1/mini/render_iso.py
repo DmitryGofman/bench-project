@@ -10,22 +10,21 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 step = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'step', 'mini-bench-P1-table.step')
 png = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'preview-iso-parts.png')
 
-NAMES = {'R1': 'R1 rear front leg', 'R2': 'R2 rear back leg', 'R3': 'R3 rear seat bearer', 'R4': 'R4 rear low tie',
-         'R5': 'R5 anti-tip foot', 'S1': 'S1 bench bearing stop', 'F1': 'F1 front long leg', 'F2': 'F2 front seat bearer',
-         'F3': 'F3 front brace', 'S2': 'S2 front seat boards', 'S3': 'S3 rear seat boards', 'T1': 'T1 table/back bearer',
-         'T2': 'T2 pivot extension', 'T4': 'T4 table spread stop', 'T5': 'T5 bench stop wedge', 'S4': 'S4 table/back boards'}
-PAL = ['#e6194b', '#3cb44b', '#4363d8', '#f58231', '#911eb4', '#0aa6b8', '#c4a000', '#f032e6', '#6b8e23', '#9a6324',
-       '#800000', '#008080', '#808000', '#000075', '#e377c2', '#7f7f7f']
-COL = dict(zip(NAMES, PAL))
+COL = {'Rear-frame_R': '#1f5fa8', 'Rear-frame_L': '#6aa9e6', 'Front-frame_R': '#c1121f', 'Front-frame_L': '#f08080',
+       'Table-frame_R': '#1b7f5c', 'Table-frame_L': '#58c9a0', 'Seat-panel-rear': '#f2a900', 'Seat-panel-front': '#8a5a2b',
+       'Table-panel': '#7b4fb8'}
+NAMES = {'Rear-frame_R': 'Rear frame, right  (R1+R2+R3+R4+R5+S1)', 'Rear-frame_L': 'Rear frame, left',
+         'Front-frame_R': 'Front frame, right  (F1+F2+F3)', 'Front-frame_L': 'Front frame, left',
+         'Table-frame_R': 'Table-back frame, right  (T1+T2+T4+T5)', 'Table-frame_L': 'Table-back frame, left',
+         'Seat-panel-rear': 'Rear seat panel (S3)', 'Seat-panel-front': 'Front seat panel (S2)', 'Table-panel': 'Table / backrest panel (S4)'}
 
 root = import_step(step)
 tris, cols = [], []
 for g in root.children:
     for s in g.children:
         lab = s.label or ''
-        pid = re.match(r'(R\d|F\d|T\d|S\d)', lab)
         if g.label.startswith('Hard'): c = '#222222'
-        elif pid and pid.group(1) in COL: c = COL[pid.group(1)]
+        elif lab in COL: c = COL[lab]
         else: continue
         v, t = s.tessellate(0.03)
         V = np.array([[p.X, p.Y, p.Z] for p in v]); tris.append(V[np.array(t)]); cols.append(np.full(len(t), 0)); cols[-1] = [c]*len(t)
@@ -56,8 +55,9 @@ order = np.argsort(-depth)                                   # far first
 fig, ax = plt.subplots(figsize=(13, 8.5), dpi=110)
 ax.add_collection(PolyCollection(P[order], facecolors=np.clip(rgb[order], 0, 1), edgecolors=np.clip(rgb[order]*.8, 0, 1), linewidths=.15))
 ax.autoscale_view(); ax.set_aspect('equal'); ax.axis('off')
-pose = 'bench' if 'bench' in step else 'mid-fold 50°' if 'mid' in step else 'table'
-ax.set_title(f'Mini folding bench P1 (1:5), {pose} pose: one colour per printed part type (left and right plates share a colour)', fontsize=11)
+name = os.path.basename(step)
+pose = 'bench' if name.endswith('-bench.step') else 'mid-fold 50°' if 'mid-fold' in name else 'table'
+ax.set_title(f'Mini folding bench P1 (1:5), {pose} pose: one colour per printed part', fontsize=11)
 leg = [Patch(color=COL[k], label=NAMES[k]) for k in NAMES] + [Patch(color='#222222', label='Hardware (bolts, lock pins; not printed)')]
 ax.legend(handles=leg, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize=9, frameon=False)
 plt.tight_layout(); plt.savefig(png, bbox_inches='tight'); print('wrote', png)
