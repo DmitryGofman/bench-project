@@ -207,7 +207,7 @@ def conflicts(key, h, margin=0.8):
 
 FRAMES = {'rear': 'Rear-frame', 'front': 'Front-frame', 'top': 'Table-frame'}
 PANELS = {'S2': ('Seat-panel-front', 'front'), 'S3': ('Seat-panel-rear', 'rear'), 'S4': ('Table-panel', 'top')}
-FUSE_ALL = {'rear': 'Rear-assembly', 'front': 'Front-assembly'}   # both sides + seat panel = ONE print
+FUSE_ALL = {'rear': 'Rear-assembly', 'front': 'Front-assembly', 'top': 'Table-assembly'}   # both sides + seat panel = ONE print
 PANEL_PEGS = 2                    # pegs per panel end and side (planks are not individually registered)
 joints = {j['id']: j for j in F['joints']}
 

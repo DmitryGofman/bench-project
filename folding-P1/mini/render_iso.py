@@ -10,12 +10,10 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 step = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'step', 'mini-bench-P1-table.step')
 png = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'preview-iso-parts.png')
 
-COL = {'Rear-assembly': '#1f5fa8', 'Front-assembly': '#c1121f',
-       'Table-frame_R': '#1b7f5c', 'Table-frame_L': '#58c9a0', 'Table-panel': '#7b4fb8'}
+COL = {'Rear-assembly': '#1f5fa8', 'Front-assembly': '#c1121f', 'Table-assembly': '#1b9e6b'}
 NAMES = {'Rear-assembly': 'Rear assembly: both sides + seat panel (R1-R5, S1, S3)',
          'Front-assembly': 'Front assembly: both sides + seat panel (F1-F3, S2)',
-         'Table-frame_R': 'Table-back frame, right  (T1+T2+T4+T5)', 'Table-frame_L': 'Table-back frame, left',
-         'Table-panel': 'Table / backrest panel (S4)'}
+         'Table-assembly': 'Table-back assembly: both sides + panel (T1, T2, T4, T5, S4)'}
 
 root = import_step(step)
 tris, cols = [], []

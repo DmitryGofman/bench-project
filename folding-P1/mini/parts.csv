@@ -1,6 +1,4 @@
 file,part,side,X_mm,Y_mm,Z_mm,volume_mm3,print note
 Rear-assembly,"Rear-assembly (fused: both sides + S3 panel, R1+R2+R3+R4+R5+S1)",RL,137.2,119.3,90.0,149820.0,"stable flat base; overhang 3241 mm2, bed contact 4343 mm2, height 90 mm"
 Front-assembly,"Front-assembly (fused: both sides + S2 panel, F1+F2+F3)",RL,170.0,167.6,61.4,109769.0,"NO flat base: needs supports down to the plate and a brim; overhang 2380 mm2, bed contact 20 mm2, height 61 mm"
-Table-frame_R,Table-frame (fused: T1+T2+T4+T5),R,101.4,78.8,22.8,27475.0,overhang 1378 mm2 (other way 2153)
-Table-frame_L,Table-frame (fused: T1+T2+T4+T5),L,101.4,78.8,22.8,27475.0,overhang 1378 mm2 (other way 2153)
-Table-panel,Table-panel,C,190.0,93.8,7.6,134674.0,flat
+Table-assembly,"Table-assembly (fused: both sides + S4 panel, T1+T2+T4+T5)",RL,190.0,101.4,86.4,189711.0,"stable flat base; overhang 1113 mm2, bed contact 16910 mm2, height 86 mm"
