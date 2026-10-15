@@ -10,13 +10,12 @@ HERE = os.path.dirname(os.path.abspath(__file__))
 step = sys.argv[1] if len(sys.argv) > 1 else os.path.join(HERE, 'step', 'mini-bench-P1-table.step')
 png = sys.argv[2] if len(sys.argv) > 2 else os.path.join(HERE, 'preview-iso-parts.png')
 
-COL = {'Rear-frame_R': '#1f5fa8', 'Rear-frame_L': '#6aa9e6', 'Front-frame_R': '#c1121f', 'Front-frame_L': '#f08080',
-       'Table-frame_R': '#1b7f5c', 'Table-frame_L': '#58c9a0', 'Seat-panel-rear': '#f2a900', 'Seat-panel-front': '#8a5a2b',
-       'Table-panel': '#7b4fb8'}
-NAMES = {'Rear-frame_R': 'Rear frame, right  (R1+R2+R3+R4+R5+S1)', 'Rear-frame_L': 'Rear frame, left',
-         'Front-frame_R': 'Front frame, right  (F1+F2+F3)', 'Front-frame_L': 'Front frame, left',
+COL = {'Rear-assembly': '#1f5fa8', 'Front-assembly': '#c1121f',
+       'Table-frame_R': '#1b7f5c', 'Table-frame_L': '#58c9a0', 'Table-panel': '#7b4fb8'}
+NAMES = {'Rear-assembly': 'Rear assembly: both sides + seat panel (R1-R5, S1, S3)',
+         'Front-assembly': 'Front assembly: both sides + seat panel (F1-F3, S2)',
          'Table-frame_R': 'Table-back frame, right  (T1+T2+T4+T5)', 'Table-frame_L': 'Table-back frame, left',
-         'Seat-panel-rear': 'Rear seat panel (S3)', 'Seat-panel-front': 'Front seat panel (S2)', 'Table-panel': 'Table / backrest panel (S4)'}
+         'Table-panel': 'Table / backrest panel (S4)'}
 
 root = import_step(step)
 tris, cols = [], []

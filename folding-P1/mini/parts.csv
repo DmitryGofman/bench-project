@@ -1,10 +1,6 @@
 file,part,side,X_mm,Y_mm,Z_mm,volume_mm3,print note
-Rear-frame_R,Rear-frame (fused: R1+R2+R3+R4+R5+S1),R,119.3,82.4,22.8,57886.0,overhang 2560 mm2 (other way 5016)
-Rear-frame_L,Rear-frame (fused: R1+R2+R3+R4+R5+S1),L,119.3,82.4,22.8,57886.0,overhang 2560 mm2 (other way 5016)
-Front-frame_R,Front-frame (fused: F1+F2+F3),R,96.3,142.4,15.2,33290.0,overhang 1045 mm2 (other way 2374)
-Front-frame_L,Front-frame (fused: F1+F2+F3),L,96.3,142.4,15.2,33290.0,overhang 1045 mm2 (other way 2374)
+Rear-assembly,"Rear-assembly (fused: both sides + S3 panel, R1+R2+R3+R4+R5+S1)",RL,137.2,119.3,90.0,149820.0,"stable flat base; overhang 3241 mm2, bed contact 4343 mm2, height 90 mm"
+Front-assembly,"Front-assembly (fused: both sides + S2 panel, F1+F2+F3)",RL,170.0,167.6,61.4,109769.0,"NO flat base: needs supports down to the plate and a brim; overhang 2380 mm2, bed contact 20 mm2, height 61 mm"
 Table-frame_R,Table-frame (fused: T1+T2+T4+T5),R,101.4,78.8,22.8,27475.0,overhang 1378 mm2 (other way 2153)
 Table-frame_L,Table-frame (fused: T1+T2+T4+T5),L,101.4,78.8,22.8,27475.0,overhang 1378 mm2 (other way 2153)
-Seat-panel-front,Seat-panel-front,C,154.8,36.8,7.6,43102.0,flat
-Seat-panel-rear,Seat-panel-rear,C,122.0,36.8,7.6,33960.0,flat
 Table-panel,Table-panel,C,190.0,93.8,7.6,134674.0,flat

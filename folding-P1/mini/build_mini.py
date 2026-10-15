@@ -18,7 +18,8 @@ Requires: build123d, shapely, trimesh, numpy.
 """
 import argparse, csv, itertools, json, math, os
 import numpy as np
-from shapely.geometry import Polygon, Point, LineString
+import trimesh
+from shapely.geometry import Polygon, Point, LineString, MultiPoint
 from shapely.ops import unary_union
 from build123d import (BuildLine, BuildSketch, BuildPart, Polyline, ThreePointArc, Line, make_face,
                        extrude, Plane, Axis, Pos, Rot, Cylinder, Box, Compound, Color, Location, Vector,
@@ -206,6 +207,7 @@ def conflicts(key, h, margin=0.8):
 
 FRAMES = {'rear': 'Rear-frame', 'front': 'Front-frame', 'top': 'Table-frame'}
 PANELS = {'S2': ('Seat-panel-front', 'front'), 'S3': ('Seat-panel-rear', 'rear'), 'S4': ('Table-panel', 'top')}
+FUSE_ALL = {'rear': 'Rear-assembly', 'front': 'Front-assembly'}   # both sides + seat panel = ONE print
 PANEL_PEGS = 2                    # pegs per panel end and side (planks are not individually registered)
 joints = {j['id']: j for j in F['joints']}
 
@@ -223,6 +225,7 @@ def panel_geometry(pid):
 PEGS = []          # (panel id, side, y, bearer part, hole in frame, hole in panel)
 dropped = []
 for pid, (pname, asm) in PANELS.items():
+    if asm in FUSE_ALL: continue                  # fused into the frame, no pegs needed
     pl, y0, y1, z0, z1, gaps = panel_geometry(pid)
     for side in SIDES:
         sx = 1 if side == 'R' else -1
@@ -257,29 +260,49 @@ def member_prism(p, side):
 
 class Body: pass
 BODIES = []
+
+def side_solid(asm, side):
+    members = [p for p in PARTS if p['asm'] == asm and p['side'] == 'R']
+    solid = member_prism(members[0], side)
+    for p in members[1:]: solid = solid + member_prism(p, side)
+    return solid, members
+
+def panel_solid(pid):
+    pl, y0, y1, z0, z1, gaps = panel_geometry(pid)
+    xa, xb = xspan(pl, 'C')
+    solid = prism(dict(poly=[[y0, z0], [y1, z0], [y1, z1], [y0, z1]], id='PANEL', tag=pid), xa, xb)
+    for ga, gb in gaps:                                  # plank lines: shallow cosmetic grooves, not through
+        solid = solid - Pos((xa+xb)/2*S, (ga+gb)/2*S, z1*S) * Box((xb-xa)*S+2, (gb-ga)*S, 2*GROOVE_DEPTH)
+    return solid, pl
+
+def finish(solid, keys, what):
+    solid = solid.clean() if hasattr(solid, 'clean') else solid
+    for k in keys:
+        for h in HOLES.get(k, []): solid = solid - h.solid()
+    assert len(solid.solids()) == 1, f'{what} is not one connected solid'
+    return solid.solids()[0]
+
 for asm, fname in FRAMES.items():
+    if asm in FUSE_ALL:
+        # whole rigid assembly: right side + left side + seat panel, one solid
+        pid = next(k for k, v in PANELS.items() if v[1] == asm)
+        sR, members = side_solid(asm, 'R'); sL, _ = side_solid(asm, 'L'); pn, pl = panel_solid(pid)
+        solid = finish(sR + sL + pn, [(asm, 'R'), (asm, 'L')], FUSE_ALL[asm])
+        b = Body(); b.p = dict(asm=asm, g='rail', name=FUSE_ALL[asm]+' (fused: both sides + '+pid+' panel, '+'+'.join(p['id'] for p in members)+')')
+        b.members = members; b.side = 'RL'; b.name = FUSE_ALL[asm]; b.solid = solid
+        BODIES.append(b)
+        continue
     for side in SIDES:
-        members = [p for p in PARTS if p['asm'] == asm and p['side'] == 'R']
-        solid = member_prism(members[0], side)
-        for p in members[1:]:
-            solid = solid + member_prism(p, side)
-        solid = solid.clean() if hasattr(solid, 'clean') else solid
-        for h in HOLES.get((asm, side), []): solid = solid - h.solid()
-        assert len(solid.solids()) == 1, f'{fname}_{side} is not one connected solid'
+        solid, members = side_solid(asm, side)
+        solid = finish(solid, [(asm, side)], f'{fname}_{side}')
         b = Body(); b.p = dict(asm=asm, g='rail', name=fname+' (fused: '+'+'.join(p['id'] for p in members)+')')
-        b.members = members; b.side = side; b.name = f'{fname}_{side}'; b.solid = solid.solids()[0]
+        b.members = members; b.side = side; b.name = f'{fname}_{side}'; b.solid = solid
         BODIES.append(b)
 
 for pid, (pname, asm) in PANELS.items():
-    pl, y0, y1, z0, z1, gaps = panel_geometry(pid)
-    xa, xb = xspan(pl, 'C')
-    rect = [[y0, z0], [y1, z0], [y1, z1], [y0, z1]]
-    fake = dict(poly=rect, id='PANEL', tag=pid)
-    solid = prism(fake, xa, xb)
-    for ga, gb in gaps:                                  # plank lines: shallow cosmetic grooves, not through
-        groove = Pos((xa+xb)/2*S, (ga+gb)/2*S, z1*S) * Box((xb-xa)*S+2, (gb-ga)*S, 2*GROOVE_DEPTH)
-        solid = solid - groove
-    for h in HOLES.get(('panel', pid), []): solid = solid - h.solid()
+    if asm in FUSE_ALL: continue
+    solid, pl = panel_solid(pid)
+    solid = finish(solid, [('panel', pid)], pname)
     b = Body(); b.p = dict(asm=asm, g='slat', name=pname); b.members = [pl]; b.side = 'C'; b.name = pname; b.solid = solid
     BODIES.append(b)
 
@@ -367,22 +390,70 @@ def overhang_area(b, flip):
     fp = [unary_union(slabs[k]) for k in keys]
     return sum(fp[i].difference(fp[i-1]).area for i in range(1, len(fp)))
 
+def score_mesh(P, T, com):
+    """support proxy for a mesh already standing on z=0: sum(area*height) over faces overhanging more than 45 deg
+    (they need supports), plus bed-contact area and whether the centre of mass sits over the contact patch."""
+    tri = P[T]; n = np.cross(tri[:, 1]-tri[:, 0], tri[:, 2]-tri[:, 0]); ar = np.linalg.norm(n, axis=1)/2
+    n = n/(2*ar[:, None]+1e-12); zc = tri[:, :, 2].mean(1)
+    over = (n[:, 2] < -0.7071) & (tri[:, :, 2].min(1) > 0.2)
+    flat = (n[:, 2] < -0.99) & (tri[:, :, 2].max(1) < 0.05)
+    contact = float(ar[flat].sum())
+    stable = False
+    if flat.any():
+        pts = tri[flat].reshape(-1, 3)[:, :2]
+        stable = bool(MultiPoint([tuple(q) for q in pts]).convex_hull.buffer(1e-6).contains(Point(com[0], com[1])))
+    return float((ar[over]*zc[over]).sum()), float(ar[over].sum()), contact, stable
+
+def best_orientation(s):
+    """lay the assembly on each large flat face that is a supporting plane (all of the part lies on one side),
+    spin it in-plane to the smallest footprint, and keep the stable, least-support option."""
+    v, t = s.tessellate(0.02)
+    mesh = trimesh.Trimesh(np.array([[p.X, p.Y, p.Z] for p in v]), np.array(t), process=True)
+    normals = [n for fa, n in zip(mesh.facets_area, mesh.facets_normal) if fa >= 60]
+    normals += [n for fa, n in zip(mesh.convex_hull.facets_area, mesh.convex_hull.facets_normal) if fa >= 150]
+    cands = []
+    for nrm in normals:
+        M = trimesh.geometry.align_vectors(nrm, [0, 0, -1])
+        P = trimesh.transform_points(mesh.vertices, M)
+        T2, rect = trimesh.bounds.oriented_bounds_2D(P[:, :2])            # in-plane spin to the smallest footprint
+        R = np.eye(4); R[:2, :2] = T2[:2, :2]; R[:2, 3] = T2[:2, 2]
+        M = R @ M; P = trimesh.transform_points(mesh.vertices, M); zmin = P[:, 2].min(); P[:, 2] -= zmin
+        if max(rect) > 215 and sorted(rect)[0] > 215: continue
+        if rect[0] > 215 or rect[1] > 215: continue
+        com = trimesh.transform_points([mesh.center_mass], M)[0]; com[2] -= zmin
+        proxy, area, contact, stable = score_mesh(P, mesh.faces, com)
+        cands.append((proxy, area, contact, P.max(0)-P.min(0), M, zmin, stable and contact >= 300))
+    good = [c for c in cands if c[6]]
+    proxy, area, contact, ext, M, zmin, ok = min(good or cands, key=lambda c: c[0])
+    how = 'stable flat base' if ok else 'NO flat base: needs supports down to the plate and a brim'
+    return M, zmin, ('%s; overhang %.0f mm2, bed contact %.0f mm2, height %.0f mm' % (how, area, contact, ext[2]))
+
 rows = []
 for b in BODIES:
     s = b.solid
     if b.side == 'C':                       # panels: already flat, long X, thin Z
         s2, note = s, 'flat'
+    elif b.side == 'RL':                    # whole assembly (both sides + panel): width stays horizontal, tilt about X
+        M, zmin, note = best_orientation(s)
+        s2 = None
     else:                                   # side frames: X becomes build-Z, choose the end with less overhang
         a0, a1 = overhang_area(b, False), overhang_area(b, True)
         flip = a1 < a0
         s2 = s.rotate(Axis((0, 0, 0), (1, 1, 1)), -120)          # (x,y,z)->(y,z,x): smallest x on the bed
         if flip: s2 = s2.rotate(Axis.Y, 180)                     # largest x on the bed instead
         note = 'overhang %.0f mm2 (other way %.0f)' % (min(a0, a1), max(a0, a1))
-    bb2 = s2.bounding_box()
-    s2 = s2.moved(Location((-bb2.min.X, -bb2.min.Y, -bb2.min.Z)))
-    export_stl(s2, os.path.join(out, 'stl', 'parts', f'{b.name}.stl'), tolerance=0.005, angular_tolerance=0.1)
-    bb3 = s2.bounding_box()
-    rows.append([b.name, b.p['name'], b.side, round(bb3.size.X, 1), round(bb3.size.Y, 1), round(bb3.size.Z, 1), round(s.volume, 0), note])
+    if s2 is None:                          # oriented with a trimesh transform
+        v, t = s.tessellate(0.005, 0.1)
+        m = trimesh.Trimesh(np.array([[p.X, p.Y, p.Z] for p in v]), np.array(t), process=True)
+        m.apply_transform(M); m.apply_translation([-m.bounds[0][0], -m.bounds[0][1], -m.bounds[0][2]])
+        m.export(os.path.join(out, 'stl', 'parts', f'{b.name}.stl'))
+        ex = m.extents; size = (ex[0], ex[1], ex[2])
+    else:
+        bb2 = s2.bounding_box()
+        s2 = s2.moved(Location((-bb2.min.X, -bb2.min.Y, -bb2.min.Z)))
+        export_stl(s2, os.path.join(out, 'stl', 'parts', f'{b.name}.stl'), tolerance=0.005, angular_tolerance=0.1)
+        bb3 = s2.bounding_box(); size = (bb3.size.X, bb3.size.Y, bb3.size.Z)
+    rows.append([b.name, b.p['name'], b.side, round(size[0], 1), round(size[1], 1), round(size[2], 1), round(s.volume, 0), note])
 
 with open(os.path.join(out, 'parts.csv'), 'w', newline='') as f:
     w = csv.writer(f); w.writerow(['file', 'part', 'side', 'X_mm', 'Y_mm', 'Z_mm', 'volume_mm3', 'print note']); w.writerows(rows)

@@ -4,20 +4,19 @@ A 1:5 version of the folding bench (table ⇄ bench) for printing and checking t
 the full-size one. Generated from the same geometry as the full-size design, so every member, pivot, stop and
 lock-pin position is the real one divided by 5.
 
-**Nine printed parts.** Everything that moves together is printed as one piece: each rigid side frame is a
-single fused part (the full-size laps and glue joints are gone), and each group of planks is one panel.
+**Five printed parts.** Everything that moves together is printed as one piece. The rear and the front
+are each a single part (both side frames and the seat panel fused); the table-back side frames stay two
+halves joined by one panel.
 
 | Printed part | Qty | Fuses (full-size parts) | Moves with |
 |---|---|---|---|
-| `Rear-frame_R` / `_L` | 1 + 1 | R1 R2 R3 R4 R5 S1 | fixed (floor) |
-| `Front-frame_R` / `_L` | 1 + 1 | F1 F2 F3 | swings on pivot A |
+| `Rear-assembly` | 1 | R1 R2 R3 R4 R5 S1 on both sides + S3 seat planks | fixed (floor) |
+| `Front-assembly` | 1 | F1 F2 F3 on both sides + S2 seat planks | swings on pivot A |
 | `Table-frame_R` / `_L` | 1 + 1 | T1 T2 T4 T5 | swings on pivot B |
-| `Seat-panel-rear` | 1 | S3 planks | rear frame |
-| `Seat-panel-front` | 1 | S2 planks | front frame |
 | `Table-panel` | 1 | S4 planks | table-back frame |
 
-The planks are not individually connected: each panel is one solid piece with shallow grooves where the plank
-gaps are. Each panel is glued onto its two side frames with 2 pegs per end.
+The planks are not individually connected: each seat is one solid with shallow grooves where the plank gaps
+are. Only the table panel is glued, onto its two frames, with 2 pegs per end.
 
 ![isometric, one colour per printed part](preview-iso-parts.png)
 *Table pose, one colour per printed part. Bench pose: `preview-iso-parts-bench.png` (made by `render_iso.py`).*
@@ -29,7 +28,7 @@ gaps are. Each panel is glued onto its two side frames with 2 pegs per end.
 | `step/mini-bench-P1-table.step` | Full assembly, table pose (fold 0°), lock pins in |
 | `step/mini-bench-P1-mid-fold-50deg.step` | Same, 50° folded, front seat in its hands-off position, pins pulled |
 | `step/mini-bench-P1-bench.step` | Same, bench pose (100°), pins in |
-| `stl/parts/*.stl` | The 9 printed parts, **already oriented for printing** |
+| `stl/parts/*.stl` | The 5 printed parts, **already oriented for printing** |
 | `parts.csv` | Printed size, volume and support estimate per part |
 | `build_mini.py` + `folding_p1_data.json` | Generator and its source geometry |
 | `render_iso.py` | The isometric picture |
@@ -37,7 +36,7 @@ gaps are. Each panel is glued onto its two side frames with 2 pegs per end.
 ## Load into Fusion
 1. *File → Open → Open from my computer* (or *Insert → Insert into Current Design*) and pick a `.step` file. Units are mm.
 2. It arrives as four sub-components: **Rear frame (fixed)**, **Front frame (swings on A)**,
-   **Table-back frame (swings on B)**, **Hardware**. Each printed part is one body. Floor is Z = 0.
+   **Table-back frame (swings on B)**, **Hardware**. Each printed part is one body; the rear and front frames each arrive as one fused body. Floor is Z = 0.
 3. If it lands on its side, rotate it (Fusion is Y-up by default; the model is Z-up).
 4. To play the mechanism, ground the rear frame and add two **revolute joints** (axis = X):
    * **Pivot B**: Table-back frame ↔ Rear frame, origin at Y = 0, Z = 73.5 (table pose)
@@ -61,17 +60,24 @@ gaps are. Each panel is glued onto its two side frames with 2 pegs per end.
   line contact would be a non-manifold edge in the fused print). S1's top, which carries the table, is unchanged.
 
 ## Printing
-* Largest parts: Table panel 190 × 94 mm; Front frame 96 × 142 mm; Rear frame 119 × 82 mm. All fit a 220 mm bed.
-* **The three frames are stepped (two or three layers) and need supports**, on the build plate only. They are
-  already rotated to the end that needs the least: Rear frame ≈ 26 cm², Table frame ≈ 14 cm², Front frame ≈ 10 cm²
-  of overhang (`parts.csv`). Tree or organic supports are easiest. The overhangs are 7.6 mm layers over empty
-  space, so they come off cleanly. Panels print flat with no supports.
+* Largest parts: Table panel 190 × 94 mm; Front assembly 170 × 168 mm (lying down, 61 mm tall); Rear assembly
+  137 × 119 mm (90 mm tall). All fit a 220 mm bed.
+* **All of them except the panel need supports**, and the STL files are already in the recommended orientation
+  (`parts.csv` has the numbers):
+  * `Rear-assembly`: seat panel face down on the plate (4300 mm² of flat contact), legs pointing up. About 32 cm²
+    of overhang (the low tie, foot and bearers). Supports on the build plate only.
+  * `Front-assembly`: lies low on its inclined legs, 61 mm tall. It has **no flat face on the plate**
+    (about 20 mm² of line contact), so it floats on supports. Use a wide brim and supports down to the plate;
+    about 24 cm² of overhang. This is the hardest part to print. If it gives trouble, print the front frame
+    sides and the seat panel separately (the commit before this one has that split).
+  * `Table-frame_R` / `_L`: stepped, about 14 cm² of overhang each, supports on the build plate.
+  * `Table-panel`: flat, no supports.
 * PLA/PETG, 0.4 mm nozzle, 0.16–0.2 mm layers, ≥ 3 walls, 25 %+ infill.
-* Left and right frames (`_L` / `_R`) are **mirror images, not copies**; print both.
+* `Table-frame_R` and `_L` are **mirror images, not copies**; print both.
 * Holes are drawn at nominal size (pivot Ø3.4, lock pin Ø2.2, pegs Ø2.0). Printed holes come out small; run a 3.5 mm
   drill through the pivot holes and check one pivot before assembling everything.
-* Solid volume of all parts ≈ 400 cm³. Expect roughly 150–250 g of filament at normal infill. The table panel is
-  about a third of that; print it at low infill.
+* Solid volume of all parts ≈ 450 cm³. Expect roughly 200–300 g of filament at normal infill, plus supports.
+  The table panel is about a third of the volume; print it at low infill.
 
 ## Hardware (starting spec, check what you have)
 | Qty | Item | Where |
@@ -80,29 +86,30 @@ gaps are. Each panel is glued onto its two side frames with 2 pegs per end.
 | 4 | M3 nyloc nut | in the Ø6.8 × 4.4 nut counterbore on the inner face |
 | 4 | M3 washer, 0.5 mm thin type | between the two moving faces at each pivot (sets the 0.6 mm gap) |
 | 2 | Ø2 mm rod, ~25 mm (or 1.75 mm filament with a bent end) | lock pins: through the front frame into the table frame (table hole or bench hole) |
-| 12 | 1.75 mm filament, cut ~6.5 mm | panel registration pegs (2 per panel end, per side) |
-| – | Cyanoacrylate or epoxy | panels to frames only, **never on a moving face** |
+| 4 | 1.75 mm filament, cut ~6.5 mm | table-panel registration pegs (2 per end, per side) |
+| – | Cyanoacrylate or epoxy | table panel to its two frames only, **never on a moving face** |
 
 Pivot tightening: snug the nyloc until the play just goes, then back off until the joint swings freely. It clamps
 the faces, because there is no sleeve at this scale. A drop of thread-lock helps.
 
 ## Assembly
-Nothing to glue inside a frame. Six frame halves, three panels, four pivots.
-1. Glue the **rear seat panel** onto both rear frames, the **front seat panel** onto both front frames and the
-   **table panel** onto both table-back frames. The pegs register them; the panel sits on top of the bearers (R3, F2, T1).
-2. Fit the pivots: **B** (table-back frame ↔ rear frame) and **A** (front frame ↔ table-back frame), with the thin
-   washer between the faces. The head sides are the outer faces of the table-back frame at B and the front frame at A.
+Five printed parts. The rear and front assemblies are already complete, so only the table panel is glued.
+1. Glue the **table panel** onto both table-back frames (`Table-frame_R` / `_L`); the pegs register it, and the
+   panel sits on top of the T1 bearers.
+2. Fit the pivots: **B** (table-back frame ↔ rear assembly) and **A** (front assembly ↔ table-back frame), with the
+   thin washer between the faces. The head sides are the outer faces of the table-back frame at B and the front
+   assembly at A.
 3. Fold with the lock pins out; fit them at 0° (table) and at 100° (bench).
 
 ## What was checked
 * Source mechanism: swept 0–100° in 0.25° steps, held-level and hands-off, over every timber pair: 0 clashes
   (reproduces the full-size validation).
-* The finished mini solids (fused frames, panels, bolts and pins) swept every 5° from 0° to 100° with the real 3D
+* The finished mini solids (fused assemblies, panel, bolts and pins) swept every 5° from 0° to 100° with the real 3D
   kernel: 0 interferences.
 * The lock-pin holes line up with the pin at both endpoints (0° and 100°).
-* Each fused frame is a single connected solid; all 9 STL are closed, manifold solids.
+* Each fused part is a single connected solid; all 5 STL are closed, manifold solids.
 * **Not** checked: the printed fit and tolerance (needs a physical print), strength, friction at the pivots, how
-  well your slicer supports the stepped frames.
+  well your slicer supports the front assembly.
 
 ## Notes
 * The front-seat "hands-off" motion in the 50° file is the simulated gravity path from the original design.
