@@ -1,0 +1,321 @@
+{
+ "P1": {
+  "hands_off": {
+   "hanging_angle_deg": 44.1,
+   "max_phi_deg": 44.1,
+   "end_phi_deg": -0.0,
+   "front_mass_kg": 8.7,
+   "com_yz": [
+    -627,
+    389
+   ],
+   "max_deviation_from_P1_stored_deg": 0.27,
+   "jumps": [
+    [
+     27.25,
+     31.0,
+     44.1
+    ]
+   ]
+  },
+  "clashes": {},
+  "contact_pairs": [
+   "F1-R~T4-R",
+   "F1-R~T5-R",
+   "R1-R~S2-2",
+   "R3-R~S2-1",
+   "R3-R~S2-2",
+   "T2-R~S1-R",
+   "T2-R~S2-1",
+   "T2-R~S2-2"
+  ],
+  "min_clearance_of_all_other_pairs_mm": 5.0,
+  "tightest_clear_pairs": [
+   [
+    "F1-R~S4-2",
+    5.0
+   ],
+   [
+    "S3-1~S2-2",
+    6.0
+   ],
+   [
+    "F1-R~S4-1",
+    7.5
+   ]
+  ],
+  "stop_gaps_table_mm": {
+   "F1-R~T4-R": 0.0
+  },
+  "stop_gaps_bench_mm": {
+   "F1-R~T5-R": 0.003,
+   "T2-R~S1-R": 0.0,
+   "S2-1~R3-R": 0.016,
+   "S2-2~R3-R": 0.011
+  },
+  "free_rotation_at_table_deg": [
+   0.0,
+   0.0
+  ],
+  "free_rotation_at_bench_deg": [
+   -10.0,
+   0.0
+  ],
+  "pin_misalignment_table_mm": 0.0,
+  "pin_misalignment_bench_mm": 0.06,
+  "tipover": {
+   "table": {
+    "footprint_y": [
+     -794,
+     450
+    ],
+    "com_y": -187,
+    "seat_edge_margins_mm": [
+     [
+      "front seat outer edge",
+      217.0
+     ],
+     [
+      "rear seat outer edge",
+      294.0
+     ]
+    ],
+    "push_safety_factor": null
+   },
+   "bench": {
+    "footprint_y": [
+     -146,
+     450
+    ],
+    "com_y": 249,
+    "seat_edge_margins_mm": [
+     [
+      "bench front edge",
+      204.0
+     ],
+     [
+      "bench rear edge",
+      169.0
+     ]
+    ],
+    "push_safety_factor": 4.3
+   }
+  },
+  "metrics": {
+   "pieces_per_side": 13,
+   "pieces_total": 35,
+   "boards": 9,
+   "volume_frames_dm3": 29.84,
+   "volume_boards_dm3": 42.78,
+   "mass_kg": 36.3,
+   "frame_mass_kg": 14.9,
+   "layers_across_width": 8,
+   "side_stack_x": [
+    514,
+    710
+   ],
+   "stack_width_mm": 196,
+   "overall_length_mm": 1520,
+   "cut_perimeter_m": 22.6
+  },
+  "production": {
+   "lap_screws": 56,
+   "board_screws": 42,
+   "m8_bolts": 6,
+   "member_joints": 24,
+   "board_joints": 12,
+   "screws_5x70": 98,
+   "pivot_bolts_m10": 4,
+   "lug_glue_area_mm2": {
+    "S1-R/R4-R": 7120,
+    "T4-R/T1-R": 4228,
+    "T5-R/T1-R": 10350
+   },
+   "lug_glue_shear_MPa_at_4kN": {
+    "S1-R/R4-R": 0.56,
+    "T4-R/T1-R": 0.95,
+    "T5-R/T1-R": 0.39
+   },
+   "smallest_lug_glue_shear_ratio_vs_1MPa": 0.95,
+   "t1_t2_bolted_lap": {
+    "moment_kNmm": 116,
+    "bolt_arm_mm": 64,
+    "force_per_bolt_kN": 1.82,
+    "embedment_capacity_kN": 3.7,
+    "utilisation": 0.49
+   },
+   "bars_2400": 10,
+   "bar_offcut_m": 1.8,
+   "sawn_cost": 243.5,
+   "sawing_m": 6.2,
+   "total_cost": 243.5
+  }
+ },
+ "P2": {
+  "hands_off": {
+   "hanging_angle_deg": 43.6,
+   "max_phi_deg": 43.6,
+   "end_phi_deg": -0.0,
+   "front_mass_kg": 9.3,
+   "com_yz": [
+    -624,
+    387
+   ],
+   "jumps": [
+    [
+     27.25,
+     31.1,
+     43.6
+    ]
+   ]
+  },
+  "clashes": {},
+  "contact_pairs": [
+   "FP-R~T4-R",
+   "FP-R~T5-R",
+   "RP-R~S2-1",
+   "RP-R~S2-2",
+   "S1-R~TP-R",
+   "TP-R~S2-1",
+   "TP-R~S2-2"
+  ],
+  "min_clearance_of_all_other_pairs_mm": 5.0,
+  "tightest_clear_pairs": [
+   [
+    "FP-R~S4-2",
+    5.0
+   ],
+   [
+    "S3-1~S2-2",
+    6.0
+   ],
+   [
+    "FP-R~S4-1",
+    7.5
+   ]
+  ],
+  "stop_gaps_table_mm": {
+   "FP-R~T4-R": 0.003
+  },
+  "stop_gaps_bench_mm": {
+   "FP-R~T5-R": 0.004,
+   "TP-R~S1-R": 0.003,
+   "S2-1~RP-R": 0.016,
+   "S2-2~RP-R": 0.011
+  },
+  "free_rotation_at_table_deg": [
+   0.0,
+   0.0
+  ],
+  "free_rotation_at_bench_deg": [
+   -10.0,
+   -0.05
+  ],
+  "pin_misalignment_table_mm": 0.0,
+  "pin_misalignment_bench_mm": 0.06,
+  "tipover": {
+   "table": {
+    "footprint_y": [
+     -794,
+     450
+    ],
+    "com_y": -193,
+    "seat_edge_margins_mm": [
+     [
+      "front seat outer edge",
+      220.0
+     ],
+     [
+      "rear seat outer edge",
+      300.0
+     ]
+    ],
+    "push_safety_factor": null
+   },
+   "bench": {
+    "footprint_y": [
+     -146,
+     450
+    ],
+    "com_y": 247,
+    "seat_edge_margins_mm": [
+     [
+      "bench front edge",
+      205.0
+     ],
+     [
+      "bench rear edge",
+      170.0
+     ]
+    ],
+    "push_safety_factor": 4.4
+   }
+  },
+  "metrics": {
+   "pieces_per_side": 6,
+   "pieces_total": 21,
+   "boards": 9,
+   "volume_frames_dm3": 24.17,
+   "volume_boards_dm3": 42.67,
+   "mass_kg": 37.8,
+   "frame_mass_kg": 16.4,
+   "layers_across_width": 5,
+   "side_stack_x": [
+    552.0,
+    666.0
+   ],
+   "stack_width_mm": 114.0,
+   "overall_length_mm": 1520.0,
+   "cut_perimeter_m": 16.4
+  },
+  "production": {
+   "lap_screws": 18,
+   "board_screws": 42,
+   "m8_bolts": 0,
+   "member_joints": 6,
+   "board_joints": 12,
+   "screws_5x70": 60,
+   "pivot_bolts_m10": 4,
+   "lug_glue_area_mm2": {
+    "S1-R/RP-R": 10020,
+    "T4-R/TP-R": 4228,
+    "T5-R/TP-R": 10350
+   },
+   "lug_glue_shear_MPa_at_4kN": {
+    "S1-R/RP-R": 0.4,
+    "T4-R/TP-R": 0.95,
+    "T5-R/TP-R": 0.39
+   },
+   "smallest_lug_glue_shear_ratio_vs_1MPa": 0.95,
+   "bars_2400": 8,
+   "bar_offcut_m": 5.5,
+   "sawn_cost": 194.8,
+   "plates": {
+    "sheets": 1,
+    "sheet_mm": [
+     2440,
+     1220,
+     18
+    ],
+    "plies": 24,
+    "ply_area_m2": 1.343,
+    "yield_on_sheets": 0.451,
+    "sheet_price": 240.0,
+    "sheet_cost": 240.0
+   },
+   "sawing_m": 18.0,
+   "total_cost": 434.8
+  },
+  "grain_check": {
+   "load": "0.9 kN per side on the front bearer, 160 mm from its root",
+   "bending_stress_MPa": 3.03,
+   "solid_panel_grain_along_F2_F1_capacity_MPa": 0.24,
+   "solid_panel_utilisation_F1_off_grain_60deg": 12.4,
+   "plywood_birch_2x18_design_strength_MPa": 14.0,
+   "plywood_utilisation": 0.22,
+   "P1_timber_member_design_strength_MPa": 11.1,
+   "P1_utilisation": 0.26,
+   "note": "Hankinson, tension perpendicular 0.4 MPa characteristic; kmod 0.6, gamma 1.3; plywood 14 MPa is a conservative design value."
+  }
+ }
+}

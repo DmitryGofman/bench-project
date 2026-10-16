@@ -1,0 +1,10 @@
+id,part,material,qty,size mm,note
+RP,"RP · Rear plate (legs, bearer, tie, foot)","18 mm birch plywood, 2 plies laminated = 36 mm",4,596 x 412,"right and left, 2 plies each; profile in drawing-plates.svg / profiles-mm.dxf"
+S1,S1 · Bench bearing stop lug,"18 mm birch plywood, 2 plies laminated = 36 mm (offcuts)",4,223 x 80,"right and left, 2 plies each"
+FP,"FP · Front plate (long leg, bearer, brace)","18 mm birch plywood, 2 plies laminated = 36 mm",4,842 x 284,"right and left, 2 plies each; profile in drawing-plates.svg / profiles-mm.dxf"
+TP,"TP · Table / back plate (apron, pivot extension)","18 mm birch plywood, 2 plies laminated = 36 mm",4,507 x 394,"right and left, 2 plies each; profile in drawing-plates.svg / profiles-mm.dxf"
+T4,T4 · Table spread stop lug,"18 mm birch plywood, 2 plies laminated = 36 mm (offcuts)",4,127 x 89,"right and left, 2 plies each"
+T5,T5 · Bench stop wedge lug,"18 mm birch plywood, 2 plies laminated = 36 mm (offcuts)",4,171 x 89,"right and left, 2 plies each"
+S2,S2 board,sawn softwood 38 x 89,2,1332,front seat
+S3,S3 board,sawn softwood 38 x 89,2,1176,rear seat
+S4,S4 board,sawn softwood 38 x 89,5,1520,table / backrest

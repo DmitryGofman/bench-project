@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="760" font-family="Helvetica,Arial" font-size="11">
+<rect width="100%" height="100%" fill="white"/>
+<text x="20" y="24" font-size="16" font-weight="bold">Layers across the width, right-hand side (plan view, x to the right, outer face on the right)</text>
+<text x="20" y="42" fill="#444">Every bar is one piece; the three frames pass each other only because they sit in different x layers. P1 uses 8 layers, P2 uses 5.</text>
+<text x="30" y="78" font-size="14" font-weight="bold">P1 Rev 2: 13 members per side, 8 layers, 196 mm</text>
+<rect x="30.0" y="90" width="83.6" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="33.0" y="101" font-size="10" fill="white" font-weight="bold">R1</text>
+<rect x="30.0" y="107" width="83.6" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="33.0" y="118" font-size="10" fill="white" font-weight="bold">R2</text>
+<rect x="113.6" y="90" width="83.6" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="116.6" y="101" font-size="10" fill="white" font-weight="bold">R3</text>
+<rect x="113.6" y="107" width="83.6" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="116.6" y="118" font-size="10" fill="white" font-weight="bold">R4</text>
+<rect x="113.6" y="124" width="83.6" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="116.6" y="135" font-size="10" fill="white" font-weight="bold">R5</text>
+<rect x="197.2" y="90" width="83.6" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="200.2" y="101" font-size="10" fill="white" font-weight="bold">S1</text>
+<rect x="203.8" y="162" width="83.6" height="15" fill="#1b9e6b" fill-opacity=".7" stroke="#222"/><text x="206.8" y="173" font-size="10" fill="white" font-weight="bold">T2</text>
+<rect x="287.4" y="162" width="83.6" height="15" fill="#1b9e6b" fill-opacity=".7" stroke="#222"/><text x="290.4" y="173" font-size="10" fill="white" font-weight="bold">T1</text>
+<rect x="371.0" y="162" width="83.6" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="374.0" y="173" font-size="10" fill="white" font-weight="bold">T4</text>
+<rect x="371.0" y="179" width="83.6" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="374.0" y="190" font-size="10" fill="white" font-weight="bold">T5</text>
+<rect x="294.0" y="234" width="83.6" height="15" fill="#c1121f" fill-opacity=".7" stroke="#222"/><text x="297.0" y="245" font-size="10" fill="white" font-weight="bold">F2</text>
+<rect x="294.0" y="251" width="83.6" height="15" fill="#c1121f" fill-opacity=".7" stroke="#222"/><text x="297.0" y="262" font-size="10" fill="white" font-weight="bold">F3</text>
+<rect x="377.6" y="234" width="83.6" height="15" fill="#c1121f" fill-opacity=".7" stroke="#222"/><text x="380.6" y="245" font-size="10" fill="white" font-weight="bold">F1</text>
+<text x="475" y="102" fill="#333">rear frame</text>
+<text x="475" y="174" fill="#333">table frame</text>
+<text x="475" y="246" fill="#333">front frame</text>
+<line x1="30" y1="308" x2="461" y2="308" stroke="#444"/><text x="30" y="324">x 514 .. 710  =  196 mm stack</text>
+<text x="30" y="408" font-size="14" font-weight="bold">P2: 3 plates + 3 lugs per side, 5 layers, 114 mm</text>
+<rect x="30.0" y="420" width="79.2" height="15" fill="#1f5fa8" fill-opacity=".7" stroke="#222"/><text x="33.0" y="431" font-size="10" fill="white" font-weight="bold">RP</text>
+<rect x="109.2" y="420" width="79.2" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="112.2" y="431" font-size="10" fill="white" font-weight="bold">S1</text>
+<rect x="115.8" y="492" width="79.2" height="15" fill="#1b9e6b" fill-opacity=".7" stroke="#222"/><text x="118.8" y="503" font-size="10" fill="white" font-weight="bold">TP</text>
+<rect x="195.0" y="492" width="79.2" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="198.0" y="503" font-size="10" fill="white" font-weight="bold">T4</text>
+<rect x="195.0" y="509" width="79.2" height="15" fill="#e6851e" fill-opacity=".7" stroke="#222"/><text x="198.0" y="520" font-size="10" fill="white" font-weight="bold">T5</text>
+<rect x="201.6" y="564" width="79.2" height="15" fill="#c1121f" fill-opacity=".7" stroke="#222"/><text x="204.6" y="575" font-size="10" fill="white" font-weight="bold">FP</text>
+<text x="295" y="432" fill="#333">rear frame</text>
+<text x="295" y="504" fill="#333">table frame</text>
+<text x="295" y="576" fill="#333">front frame</text>
+<line x1="30" y1="638" x2="281" y2="638" stroke="#444"/><text x="30" y="654">x 552 .. 666  =  114 mm stack</text>
+</svg>

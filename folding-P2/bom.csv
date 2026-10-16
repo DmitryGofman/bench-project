@@ -1,0 +1,13 @@
+id,qty,specification,note
+H01,4,"M10 x 70 hex bolt, ISO 4017, A4-70 stainless (or HDG 8.8)","Pivots A and B, one per pivot per side (same as P1)"
+H02,4,"M10 nyloc nut, ISO 10511, A4","Torque fully: the bolt clamps the sleeve, not the plywood"
+H03,8,"M10 flat washer ISO 7089 (Ø20 x 2), A4",Head and nut side of each pivot
+H04,4,"Pivot sleeve: stainless tube OD14 x 1.5 wall, cut 50.5 long, ends square & deburred",= 75 plate stack - 10 - 15 counterbores + 0.5 float (P1: 54.5)
+H05,4,"Plain bushing ID14 / OD18 x 25, sintered bronze or POM","Pressed into the front plate and the table plate (head side), flush with the moving face"
+H06,4,"Plain bushing ID14 / OD18 x 20, sintered bronze or POM",Pressed into the table plate and the rear plate (nut side)
+H07,4,"Thrust washer UHMW-PE or PTFE, ID14.5 / OD40 / 3.0 thick",Between the moving faces at each pivot
+H08,2,"Ball-lock quick-release pin Ø10, stainless, usable grip >= 75 mm, lanyard","One per side, through the front plate into the table plate (table / bench hole)"
+H10,66,"Exterior structural screw 5 x 70, countersunk Torx",60 fitted + 10 % spare: 3 per lug (18) + boards (42). P1: 98 fitted
+H11,1,Exterior PU / D4 adhesive or epoxy,"Ply-to-ply lamination of every plate and lug, lugs to plates. Not on moving faces"
+M01,1,"18 mm birch plywood (exterior glue), 2440 x 1220",24 plies nested on 1 sheet (drawing-plate-nesting.svg)
+M02,8,"Sawn softwood 38 x 89, 2400 long","Seat and table boards S2, S3, S4 (P1: 10 bars incl. frame members)"

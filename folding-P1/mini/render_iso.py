@@ -54,7 +54,10 @@ ax.add_collection(PolyCollection(P[order], facecolors=np.clip(rgb[order], 0, 1),
 ax.autoscale_view(); ax.set_aspect('equal'); ax.axis('off')
 name = os.path.basename(step)
 pose = 'bench' if name.endswith('-bench.step') else 'mid-fold 50°' if 'mid-fold' in name else 'table'
-ax.set_title(f'Mini folding bench P1 (1:5), {pose} pose: one colour per printed part', fontsize=11)
+design = (re.search(r'-(P\d)-', os.path.basename(step)) or [None, 'P1'])[1]
+ax.set_title(f'Mini folding bench {design} (1:5), {pose} pose: one colour per printed part', fontsize=11)
+if design != 'P1':        # the member lists in the legend are P1's; other designs get the plain names
+    NAMES = {k: re.sub(r' \(.*\)', '', v) for k, v in NAMES.items()}
 leg = [Patch(color=COL[k], label=NAMES[k]) for k in NAMES] + [Patch(color='#222222', label='Hardware (bolts, lock pins; not printed)')]
 ax.legend(handles=leg, loc='center left', bbox_to_anchor=(1.0, 0.5), fontsize=9, frameon=False)
 plt.tight_layout(); plt.savefig(png, bbox_inches='tight'); print('wrote', png)

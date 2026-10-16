@@ -107,3 +107,6 @@ Three parts, no glue.
 * The front-seat "hands-off" motion in the 50° file is the simulated gravity path from the original design.
 * `folding_p1_data.json` is the `FOLDING_P1` object extracted from `app/index.html`, because the original
   `folding-P1/rev2/` folder is not in this repository.
+
+## Other designs
+`build_mini.py --data <json> --out <dir>` builds the same kind of mini model from any design file in this schema. `folding-P2/p2_data.json` (the plywood-plate option, see `folding-P2/README.md`) is built this way.

@@ -30,13 +30,21 @@ ap = argparse.ArgumentParser()
 ap.add_argument('--width', type=float, default=190.0, help='overall board length S4, mm (mini scale)')
 ap.add_argument('--scale', type=float, default=0.2)
 ap.add_argument('--out', default=HERE)
+ap.add_argument('--data', default=os.path.join(HERE, 'folding_p1_data.json'), help='design data (P1 or P2 json)')
 ap.add_argument('--verify', action='store_true', help='also run a 3D solid interference sweep (slow)')
 args = ap.parse_args()
 
 S = args.scale
-F = json.load(open(os.path.join(HERE, 'folding_p1_data.json')))
+F = json.load(open(args.data))
+NAME = F.get('name', 'P1')
 B, A0, L0 = F['B'], F['A0'], F['L0']
 D = (args.width / S - L0) / 2.0          # full-size-units x shift of every part (as the app's d)
+
+# which parts carry the pivots / lock pin, and where the bolt heads and nuts sit (full-size x faces)
+FEAT = F.get('mini', dict(
+    pivotA=dict(head='F1-R', nut='T1-R', head_x=710, nut_x=631),     # F1 <-> T1, head on F1 outer face
+    pivotB=dict(head='T2-R', nut='R3-R', head_x=631, nut_x=552),     # T2 <-> R3, head on T2 outer face
+    pin=dict(front='F1-R', top='T1-R')))
 
 # ---------------- hardware / feature sizes (mini mm) ----------------
 BOLT_HOLE = 3.4          # M3 clearance
@@ -89,30 +97,65 @@ def profile_wire_points(p):
         if len(run) == n: break
     return poly, (run[0], run[len(run)//2], run[-1])
 
+def ring_segments(pts, tol=0.02, min_pts=4):
+    """polyline ring -> ordered segments: ('L', p0, p1) and ('A', p0, pm, p1) where >= min_pts consecutive points lie on one circle.
+    (Plate outlines come from shapely buffering, so every fillet is a chain of vertices on a circle.)"""
+    n = len(pts); P = [np.array(q, float) for q in pts]
+    def circ(a, b, c):
+        d = 2*(a[0]*(b[1]-c[1]) + b[0]*(c[1]-a[1]) + c[0]*(a[1]-b[1]))
+        if abs(d) < 1e-9: return None
+        ux = ((a@a)*(b[1]-c[1]) + (b@b)*(c[1]-a[1]) + (c@c)*(a[1]-b[1]))/d
+        uy = ((a@a)*(c[0]-b[0]) + (b@b)*(a[0]-c[0]) + (c@c)*(b[0]-a[0]))/d
+        o = np.array([ux, uy]); return o, np.linalg.norm(a-o)
+    segs = []; i = 0
+    while i < n:
+        best = None
+        if i+2 <= n:
+            c = circ(P[i], P[(i+1) % n], P[(i+2) % n])
+            if c is not None and c[1] < 500:
+                o, r = c; k = i+2
+                while k+1 <= n and abs(np.linalg.norm(P[(k+1) % n]-o)-r) < tol: k += 1
+                if k-i+1 >= min_pts: best = k
+        if best is not None:
+            m = (i+best)//2
+            segs.append(('A', P[i % n], P[m % n], P[best % n])); i = best
+        else:
+            segs.append(('L', P[i % n], P[(i+1) % n])); i += 1
+    return segs
+
 def prism(p, x0, x1, poly_override=None):
     """solid for part p between x0,x1 (full-size x, shifted by D already), mini mm."""
     poly, arc = profile_wire_points(p)
     if poly_override is not None:
         poly, arc = poly_override, None
     pl = Plane.YZ.offset(x0*S)
-    with BuildPart() as bp:
-        with BuildSketch(pl):
-            with BuildLine():
-                n = len(poly)
-                if arc is None:
-                    Polyline(*[tuple(q) for q in poly], close=True)
-                else:
-                    a0, am, a1 = arc
-                    # arc a0..a1 (cyclic run) ; straight remainder a1 -> ... -> a0
-                    ThreePointArc(tuple(poly[a0]), tuple(poly[am]), tuple(poly[a1]))
-                    rest = []
-                    i = (a1+1) % n
-                    while i != a0:
-                        rest.append(poly[i]); i = (i+1) % n
-                    Polyline(tuple(poly[a1]), *[tuple(q) for q in rest], tuple(poly[a0]))
-            make_face()
-        extrude(amount=(x1-x0)*S)
-    return bp.part
+    def body(poly, arc):
+        with BuildPart() as bp:
+            with BuildSketch(pl):
+                with BuildLine():
+                    n = len(poly)
+                    if arc is None and p.get('kind') == 'plate':
+                        for sg in ring_segments(poly):
+                            if sg[0] == 'L': Line(tuple(sg[1]), tuple(sg[2]))
+                            else: ThreePointArc(tuple(sg[1]), tuple(sg[2]), tuple(sg[3]))
+                    elif arc is None:
+                        Polyline(*[tuple(q) for q in poly], close=True)
+                    else:
+                        a0, am, a1 = arc
+                        # arc a0..a1 (cyclic run) ; straight remainder a1 -> ... -> a0
+                        ThreePointArc(tuple(poly[a0]), tuple(poly[am]), tuple(poly[a1]))
+                        rest = []
+                        i = (a1+1) % n
+                        while i != a0:
+                            rest.append(poly[i]); i = (i+1) % n
+                        Polyline(tuple(poly[a1]), *[tuple(q) for q in rest], tuple(poly[a0]))
+                make_face()
+            extrude(amount=(x1-x0)*S)
+        return bp.part
+    solid = body(poly, arc)
+    for ring in p.get('holes', []) or []:            # cut-outs inside a plate
+        solid = solid - body([[q[0]*S, q[1]*S] for q in ring], None)
+    return solid
 
 # ---------------- holes: described as cylinders in table-pose world coordinates ----------------
 class Hole:
@@ -183,21 +226,22 @@ def outer_face(side):  return 'x1' if side == 'R' else 'x0'      # face away fro
 def inner_face(side):  return 'x0' if side == 'R' else 'x1'      # face towards bench centre
 
 for side in SIDES:
-    # pivot A: F1 (head, outer face) <-> T1 (nut, inner face)
-    place_x_holes(by('F1-R'), side, A0[0], A0[1], BOLT_HOLE, None, None, 'pivot')
-    place_x_holes(by('F1-R'), side, A0[0], A0[1], HEAD_BORE, outer_face(side), HEAD_DEPTH, 'bore')
-    place_x_holes(by('T1-R'), side, A0[0], A0[1], BOLT_HOLE, None, None, 'pivot')
-    place_x_holes(by('T1-R'), side, A0[0], A0[1], NUT_BORE, inner_face(side), NUT_DEPTH, 'bore')
-    # pivot B: T2 (head, outer face = towards the front frame) <-> R3 (nut, inner face)
-    place_x_holes(by('T2-R'), side, B[0], B[1], BOLT_HOLE, None, None, 'pivot')
-    place_x_holes(by('T2-R'), side, B[0], B[1], HEAD_BORE, outer_face(side), HEAD_DEPTH, 'bore')
-    place_x_holes(by('R3-R'), side, B[0], B[1], BOLT_HOLE, None, None, 'pivot')
-    place_x_holes(by('R3-R'), side, B[0], B[1], NUT_BORE, inner_face(side), NUT_DEPTH, 'bore')
-    # lock pin: one hole in F1, two in T1 (table / bench)
+    fa, fb, fp = FEAT['pivotA'], FEAT['pivotB'], FEAT['pin']
+    # pivot A: front part (head, outer face) <-> table part (nut, inner face)
+    place_x_holes(by(fa['head']), side, A0[0], A0[1], BOLT_HOLE, None, None, 'pivot')
+    place_x_holes(by(fa['head']), side, A0[0], A0[1], HEAD_BORE, outer_face(side), HEAD_DEPTH, 'bore')
+    place_x_holes(by(fa['nut']), side, A0[0], A0[1], BOLT_HOLE, None, None, 'pivot')
+    place_x_holes(by(fa['nut']), side, A0[0], A0[1], NUT_BORE, inner_face(side), NUT_DEPTH, 'bore')
+    # pivot B: table part (head, outer face = towards the front frame) <-> rear part (nut, inner face)
+    place_x_holes(by(fb['head']), side, B[0], B[1], BOLT_HOLE, None, None, 'pivot')
+    place_x_holes(by(fb['head']), side, B[0], B[1], HEAD_BORE, outer_face(side), HEAD_DEPTH, 'bore')
+    place_x_holes(by(fb['nut']), side, B[0], B[1], BOLT_HOLE, None, None, 'pivot')
+    place_x_holes(by(fb['nut']), side, B[0], B[1], NUT_BORE, inner_face(side), NUT_DEPTH, 'bore')
+    # lock pin: one hole in the front part, two in the table part (table / bench)
     pf = F['validation']['pin']
-    place_x_holes(by('F1-R'), side, *pf['F1_hole'], PIN_HOLE, None, None, 'pin')
-    place_x_holes(by('T1-R'), side, *pf['T1_table'], PIN_HOLE, None, None, 'pin')
-    place_x_holes(by('T1-R'), side, *pf['T1_bench'], PIN_HOLE, None, None, 'pin')
+    place_x_holes(by(fp['front']), side, *pf['F1_hole'], PIN_HOLE, None, None, 'pin')
+    place_x_holes(by(fp['top']), side, *pf['T1_table'], PIN_HOLE, None, None, 'pin')
+    place_x_holes(by(fp['top']), side, *pf['T1_bench'], PIN_HOLE, None, None, 'pin')
 
 # --- 2. each rigid side frame is ONE printed part (members fused); planks become one panel per group --------------
 def conflicts(key, h, margin=0.8):
@@ -209,7 +253,7 @@ FRAMES = {'rear': 'Rear-frame', 'front': 'Front-frame', 'top': 'Table-frame'}
 PANELS = {'S2': ('Seat-panel-front', 'front'), 'S3': ('Seat-panel-rear', 'rear'), 'S4': ('Table-panel', 'top')}
 FUSE_ALL = {'rear': 'Rear-assembly', 'front': 'Front-assembly', 'top': 'Table-assembly'}   # both sides + seat panel = ONE print
 PANEL_PEGS = 2                    # pegs per panel end and side (planks are not individually registered)
-joints = {j['id']: j for j in F['joints']}
+joints = {j['id']: j for j in F.get('joints', [])}
 
 def panel_geometry(pid):
     planks = [p for p in PARTS if p['id'] == pid]
@@ -230,7 +274,7 @@ for pid, (pname, asm) in PANELS.items():
     for side in SIDES:
         sx = 1 if side == 'R' else -1
         cand = []
-        for m in F['marks']:
+        for m in F.get('marks', []):
             if m['k'] != 'boardscrew' or not m['joint'] or not m['part'].startswith(pid): continue
             j = joints[m['joint']]
             plank = ID2PART[j['a']] if ID2PART[j['a']]['id'] == pid else ID2PART[j['b']]
@@ -315,15 +359,16 @@ def hw_cyl(name, r, x0, x1, y, z, asm, color):
 for side in SIDES:
     sx = 1 if side == 'R' else -1
     def X(v): return sx*(v+D)*S
-    # pivot A bolt: head outer face of F1 (x1=710) -> nut in T1 (x0=631)
+    fa, fb = FEAT['pivotA'], FEAT['pivotB']
+    # pivot A bolt: head on the front part's outer face -> nut in the table part
     ya, za = A0[0]*S, A0[1]*S
-    hw_cyl(f'Pivot A bolt {side} shank', 1.5, X(710)-sx*HEAD_DEPTH, X(631)+sx*(NUT_DEPTH-0.4), ya, za, 'front', Color(0.15, 0.15, 0.17))
-    hw_cyl(f'Pivot A bolt {side} head', 2.75, X(710)-sx*HEAD_DEPTH, X(710), ya, za, 'front', Color(0.15, 0.15, 0.17))
+    hw_cyl(f'Pivot A bolt {side} shank', 1.5, X(fa['head_x'])-sx*HEAD_DEPTH, X(fa['nut_x'])+sx*(NUT_DEPTH-0.4), ya, za, 'front', Color(0.15, 0.15, 0.17))
+    hw_cyl(f'Pivot A bolt {side} head', 2.75, X(fa['head_x'])-sx*HEAD_DEPTH, X(fa['head_x']), ya, za, 'front', Color(0.15, 0.15, 0.17))
     yb, zb = B[0]*S, B[1]*S
-    hw_cyl(f'Pivot B bolt {side} shank', 1.5, X(631)-sx*HEAD_DEPTH, X(552)+sx*(NUT_DEPTH-0.4), yb, zb, 'top', Color(0.15, 0.15, 0.17))
-    hw_cyl(f'Pivot B bolt {side} head', 2.75, X(631)-sx*HEAD_DEPTH, X(631), yb, zb, 'top', Color(0.15, 0.15, 0.17))
+    hw_cyl(f'Pivot B bolt {side} shank', 1.5, X(fb['head_x'])-sx*HEAD_DEPTH, X(fb['nut_x'])+sx*(NUT_DEPTH-0.4), yb, zb, 'top', Color(0.15, 0.15, 0.17))
+    hw_cyl(f'Pivot B bolt {side} head', 2.75, X(fb['head_x'])-sx*HEAD_DEPTH, X(fb['head_x']), yb, zb, 'top', Color(0.15, 0.15, 0.17))
     pin = F['validation']['pin']['F1_hole']
-    hw_cyl(f'Lock pin {side}', 1.0, X(710)+sx*4, X(631)-sx*1, pin[0]*S, pin[1]*S, 'front', Color(0.25, 0.47, 0.92))
+    hw_cyl(f'Lock pin {side}', 1.0, X(fa['head_x'])+sx*4, X(fa['nut_x'])-sx*1, pin[0]*S, pin[1]*S, 'front', Color(0.25, 0.47, 0.92))
     HW[-1]['pin_dx'] = sx*18          # pulled-out offset used between the end stops
 
 # ---------------- poses ----------------
@@ -373,7 +418,7 @@ for d in ('step', 'stl/parts', 'stl/assembly'): os.makedirs(os.path.join(out, d)
 
 for fold, nm in ((0, 'table'), (50, 'mid-fold-50deg'), (100, 'bench')):
     asm = assembly(fold)
-    export_step(asm, os.path.join(out, 'step', f'mini-bench-P1-{nm}.step'))
+    export_step(asm, os.path.join(out, 'step', f'mini-bench-{NAME}-{nm}.step'))
     print('wrote step', nm)
 
 # ---------------- print files ----------------
@@ -426,7 +471,12 @@ def best_orientation(s):
     good = [c for c in cands if c[6]]
     proxy, area, contact, ext, M, zmin, ok = min(good or cands, key=lambda c: c[0])
     how = 'stable flat base' if ok else 'NO flat base: needs supports down to the plate and a brim'
-    return M, zmin, ('%s; overhang %.0f mm2, bed contact %.0f mm2, height %.0f mm' % (how, area, contact, ext[2]))
+    alt = min(cands, key=lambda c: c[0])                       # lowest-support option, stable or not
+    note = '%s; overhang %.0f mm2, bed contact %.0f mm2, height %.0f mm' % (how, area, contact, ext[2])
+    if alt[4] is not M:
+        note += '  [lowest-support alternative: overhang %.0f mm2, contact %.0f mm2, height %.0f mm, %s]' % (
+            alt[1], alt[2], alt[3][2], 'stable' if alt[6] else 'no flat base')
+    return M, zmin, note
 
 rows = []
 for b in BODIES:
