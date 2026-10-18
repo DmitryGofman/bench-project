@@ -33,7 +33,7 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 | Seats | 450 high, 3 boards (279) each; rear seat 35 and front seat 39 outside the table edges |
 | Bench | seat 564 deep, backrest top 952 |
 | Floor footprint (table) | -957 … 398 |
-| Parts | 36 pieces, see `cutting-plan.txt` for bars of 38×89 × 2400 |
+| Parts | 37 pieces, see `cutting-plan.txt` for bars of 38×89 × 2400 |
 
 ## Clean-up from the first V2
 

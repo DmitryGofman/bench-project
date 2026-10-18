@@ -380,10 +380,10 @@ def main():
         {'id': 'H06', 'qty': 4, 'spec': 'Thrust washer UHMW-PE, ID14.5 / OD40 / 3.0', 'note': 'Between the moving faces at each pivot.'},
         {'id': 'H07', 'qty': 2, 'spec': 'Ball-lock quick-release pin Ø10, stainless, grip ≥ 80, with lanyard', 'note': 'Optional (the video uses a rope). One per side, through F1 into T1 ("table" or "bench" hole): keeps the front seat from swinging while you lift the table.'},
         {'id': 'H08', 'qty': n_m8, 'spec': 'M8×80 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Strut to apron (2 per side), T3 and T4 to apron (1 each per side). Counterbore Ø24×12 where a face moves past another part.'},
-        {'id': 'H12', 'qty': 2, 'spec': 'M8×130 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Bench stop R5 through stretcher R4 and leg R3, 1 per side.'},
         {'id': 'H09', 'qty': math.ceil(n_screw*1.1), 'spec': 'Exterior structural screw 5×70, countersunk Torx', 'note': '%d fitted + 10%% spare. Countersink flush.' % n_screw},
         {'id': 'H10', 'qty': 4, 'spec': 'Exterior structural screw 6×120', 'note': 'Front seat rail F2 down into leg F3, 2 per side.'},
         {'id': 'H11', 'qty': 1, 'spec': 'Exterior PU / D4 wood adhesive', 'note': 'All fixed laps. Not on moving faces.'},
+        {'id': 'H12', 'qty': 2, 'spec': 'M8×130 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Bench stop R5 through stretcher R4 and leg R3, 1 per side.'},
     ]
     F['interfaces'] = [
         {'id': 'P-A', 'what': 'Pivot A · F1 ↔ T1', 'type': 'pivot bearing', 'spec': 'M10 bolt clamps a Ø14 stainless sleeve; both members on Ø14/Ø18 bushings; 3 mm UHMW thrust washer. Counterbore Ø30: 10 deep on F1 outer face, 15 deep on T1 inner face.'},
