@@ -1,0 +1,194 @@
+{
+ "validation": {
+  "guided": 0,
+  "jams": 0,
+  "fasteners": 0,
+  "rigidity": {
+   "pin_out": {
+    "table": {
+     "front +1°": "blocked by floor",
+     "front −1°": "blocked by F1/T3"
+    },
+    "bench": {
+     "front +1°": "blocked by floor",
+     "front −1°": "free (gravity only)"
+    }
+   },
+   "pin_in": {
+    "table": {
+     "fold +1°": "free (gravity only)",
+     "unfold 1°": "blocked by floor"
+    },
+    "bench": {
+     "fold 1° more": "blocked by floor",
+     "unfold 1°": "blocked by floor"
+    }
+   }
+  },
+  "pin": {
+   "radius_from_A": 34.0,
+   "F1_hole": [
+    -341.63,
+    646.454
+   ],
+   "T1_table": [
+    -341.63,
+    646.454
+   ],
+   "T1_bench": [
+    -341.63,
+    698.546
+   ]
+  }
+ },
+ "meta": {
+  "backTop": 872,
+  "seatDepth": 438,
+  "tableDepth": 578,
+  "tableHeight": 755,
+  "seatHeight": 450,
+  "footprintTable": [
+   -803,
+   398
+  ],
+  "boardW": 140.0,
+  "seatW": 68.0,
+  "shift": 727.0,
+  "A": [
+   -363.485,
+   672.5
+  ],
+  "B": [
+   0.0,
+   367.5
+  ],
+  "tableToSeats": [
+   98,
+   57
+  ]
+ },
+ "guided_clashes": [],
+ "jams": [],
+ "handsoff_bad": [],
+ "fastener_issues": [],
+ "handsoff_samples": [
+  [
+   0.0,
+   0.0
+  ],
+  [
+   -5.0,
+   4.25
+  ],
+  [
+   -10.0,
+   8.5
+  ],
+  [
+   -15.0,
+   13.25
+  ],
+  [
+   -20.0,
+   18.75
+  ],
+  [
+   -25.0,
+   26.25
+  ],
+  [
+   -30.0,
+   46.25
+  ],
+  [
+   -35.0,
+   46.25
+  ],
+  [
+   -40.0,
+   46.25
+  ],
+  [
+   -45.0,
+   46.25
+  ],
+  [
+   -50.0,
+   46.25
+  ],
+  [
+   -55.0,
+   45.0
+  ],
+  [
+   -60.0,
+   40.0
+  ],
+  [
+   -65.0,
+   35.0
+  ],
+  [
+   -70.0,
+   30.0
+  ],
+  [
+   -75.0,
+   25.0
+  ],
+  [
+   -80.0,
+   18.75
+  ],
+  [
+   -85.0,
+   13.25
+  ],
+  [
+   -90.0,
+   8.5
+  ],
+  [
+   -95.0,
+   4.25
+  ],
+  [
+   -100.0,
+   0.0
+  ]
+ ],
+ "joints": [
+  [
+   "J01",
+   8200
+  ],
+  [
+   "J02",
+   8200
+  ],
+  [
+   "J03",
+   6716
+  ],
+  [
+   "J04",
+   6525
+  ],
+  [
+   "J06",
+   7998
+  ],
+  [
+   "J07",
+   12738
+  ],
+  [
+   "J09",
+   9097
+  ],
+  [
+   "J10",
+   7920
+  ]
+ ]
+}

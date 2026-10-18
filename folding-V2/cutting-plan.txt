@@ -1,0 +1,21 @@
+Folding picnic bench V2 — cutting plan
+2400 mm bars, 3 mm kerf
+
+== 38×68 
+  bar 1  1496 (S3 · Front seat board)   [offcut 901]
+  bar 2  1496 (S3 · Front seat board)   [offcut 901]
+  bar 3  1496 (S3 · Front seat board)   [offcut 901]
+  bar 4  1180 (S1 · Rear seat board)  +  1180 (S1 · Rear seat board)   [offcut 34]
+  bar 5  1180 (S1 · Rear seat board)   [offcut 1217]
+
+== 38×89 
+  bar 1  847 (F1 · Arm (table leg))  +  847 (F1 · Arm (table leg))  +  578 (T1 · Table apron / backrest post)   [offcut 119]
+  bar 2  578 (T1 · Table apron / backrest post)  +  451 (R2 · Rear frame front leg)  +  451 (R2 · Rear frame front leg)  +  451 (R3 · Rear frame back leg)  +  451 (R3 · Rear frame back leg)   [offcut 3]
+  bar 3  404 (T2 · Strut)  +  404 (T2 · Strut)  +  380 (R1 · Rear seat rail)  +  380 (R1 · Rear seat rail)  +  361 (F2 · Front seat rail)  +  361 (F2 · Front seat rail)   [offcut 92]
+  bar 4  350 (R4 · Rear frame stretcher)  +  350 (R4 · Rear frame stretcher)  +  323 (F3 · Front seat leg)  +  323 (F3 · Front seat leg)  +  169 (T3 · Table spread stop)  +  169 (T3 · Table spread stop)   [offcut 698]
+
+== 38×140 
+  bar 1  1520 (S2 · Table / backrest board)   [offcut 877]
+  bar 2  1520 (S2 · Table / backrest board)   [offcut 877]
+  bar 3  1520 (S2 · Table / backrest board)   [offcut 877]
+  bar 4  1520 (S2 · Table / backrest board)   [offcut 877]

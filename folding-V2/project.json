@@ -1,0 +1,46 @@
+{
+  "furnitureKit": 1,
+  "design": "folding",
+  "variant": "V2",
+  "params": {
+    "L": 1520,
+    "fold": 0,
+    "motion": "hands",
+    "conn": true
+  },
+  "stock": {
+    "rail": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    },
+    "slat": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    },
+    "stop": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    }
+  },
+  "cut": {
+    "len": 2400,
+    "kerf": 3,
+    "density": 500
+  },
+  "sheet": {
+    "t": 18,
+    "L": 2440,
+    "W": 1220,
+    "price": 240,
+    "kerf": 3
+  },
+  "cost": {
+    "vat": 18,
+    "cutBar": 3,
+    "cutSheet": 12
+  },
+  "notes": {}
+}

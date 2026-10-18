@@ -1,0 +1,914 @@
+{
+  "design": "folding",
+  "variant": "V2",
+  "info": {
+    "designer": "—",
+    "version": "2.1.0 (P1 rev 2 · V2)",
+    "license": "MIT"
+  },
+  "params": {
+    "L": 1520,
+    "fold": 0,
+    "motion": "hands",
+    "conn": true
+  },
+  "stock": {
+    "rail": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    },
+    "slat": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    },
+    "stop": {
+      "t": 38,
+      "w": 89,
+      "rate": 10.145999999999999
+    },
+    "head": {
+      "t": 0,
+      "w": 0,
+      "rate": 0
+    }
+  },
+  "cutting": {
+    "len": 2400,
+    "kerf": 3,
+    "density": 500
+  },
+  "parts": [
+    {
+      "name": "R1 · Rear seat rail",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 380,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        379.5,
+        89
+      ],
+      "position": [
+        571,
+        145.3,
+        367.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R1 · Rear seat rail",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 380,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        379.5,
+        89
+      ],
+      "position": [
+        -571,
+        145.3,
+        367.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R2 · Rear frame front leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 451,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        202.5,
+        412
+      ],
+      "position": [
+        533,
+        35.9,
+        206
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R2 · Rear frame front leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 451,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        202.5,
+        412
+      ],
+      "position": [
+        -533,
+        35.9,
+        206
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R3 · Rear frame back leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 451,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        202.5,
+        412
+      ],
+      "position": [
+        533,
+        296.3,
+        206
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R3 · Rear frame back leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 451,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        202.5,
+        412
+      ],
+      "position": [
+        -533,
+        296.3,
+        206
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R4 · Rear frame stretcher",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 350,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        350,
+        89
+      ],
+      "position": [
+        571,
+        165,
+        144.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R4 · Rear frame stretcher",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 350,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        350,
+        89
+      ],
+      "position": [
+        -571,
+        165,
+        144.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S1 · Rear seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1180,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        152,
+        431
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S1 · Rear seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1180,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        226,
+        431
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S1 · Rear seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1180,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        300,
+        431
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T1 · Table apron / backrest post",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 578,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        578,
+        89
+      ],
+      "position": [
+        650,
+        -269,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T1 · Table apron / backrest post",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 578,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        578,
+        89
+      ],
+      "position": [
+        -650,
+        -269,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T2 · Strut",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 404,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        138.5,
+        394
+      ],
+      "position": [
+        612,
+        -24.8,
+        520
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T2 · Strut",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 404,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        138.5,
+        394
+      ],
+      "position": [
+        -612,
+        -24.8,
+        520
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T3 · Table spread stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 169,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        168.8,
+        89
+      ],
+      "position": [
+        688,
+        -473.6,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T3 · Table spread stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 169,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        168.8,
+        89
+      ],
+      "position": [
+        -688,
+        -473.6,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        140
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        140
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        140,
+        38
+      ],
+      "position": [
+        0,
+        -50,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        140
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        140
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        140,
+        38
+      ],
+      "position": [
+        0,
+        -196,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        140
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        140
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        140,
+        38
+      ],
+      "position": [
+        0,
+        -342,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        140
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        140
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        140,
+        38
+      ],
+      "position": [
+        0,
+        -488,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F1 · Arm (table leg)",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 847,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        484.1,
+        717
+      ],
+      "position": [
+        691,
+        -561.1,
+        358.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F1 · Arm (table leg)",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 847,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        484.1,
+        717
+      ],
+      "position": [
+        -691,
+        -561.1,
+        358.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F3 · Front seat leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 323,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        89,
+        323
+      ],
+      "position": [
+        729,
+        -751.8,
+        161.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F3 · Front seat leg",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 323,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        89,
+        323
+      ],
+      "position": [
+        -729,
+        -751.8,
+        161.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F2 · Front seat rail",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 361,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        361,
+        89
+      ],
+      "position": [
+        729,
+        -650.5,
+        367.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "F2 · Front seat rail",
+      "area": "rail",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 361,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        361,
+        89
+      ],
+      "position": [
+        -729,
+        -650.5,
+        367.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S3 · Front seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1496,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        -649,
+        431
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S3 · Front seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1496,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        -723,
+        431
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S3 · Front seat board",
+      "area": "slat",
+      "stock": [
+        38,
+        68
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        68
+      ],
+      "cutLength": 1496,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        68,
+        38
+      ],
+      "position": [
+        0,
+        -797,
+        431
+      ],
+      "rotationX": 0
+    }
+  ]
+}
