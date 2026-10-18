@@ -1,5 +1,9 @@
 {
  "validation": {
+  "overtravel": {
+   "table_opens": null,
+   "bench_folds": null
+  },
   "guided": 0,
   "jams": 0,
   "fasteners": 0,
@@ -7,7 +11,7 @@
    "pin_out": {
     "table": {
      "front +1°": "blocked by floor",
-     "front −1°": "free (gravity only)"
+     "front −1°": "blocked by F1/T3"
     },
     "bench": {
      "front +1°": "blocked by floor",
@@ -20,7 +24,7 @@
      "unfold 1°": "blocked by floor"
     },
     "bench": {
-     "fold 1° more": "blocked by R1/R2/S3",
+     "fold 1° more": "blocked by R1/R2/R5/S3/T2",
      "unfold 1°": "blocked by floor"
     }
    }
@@ -178,6 +182,14 @@
   [
    "J06",
    7998
+  ],
+  [
+   "J12",
+   19454
+  ],
+  [
+   "J13",
+   13392
   ],
   [
    "J08",

@@ -476,6 +476,64 @@
       "rotationX": 0
     },
     {
+      "name": "R5 · Bench stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 247,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        149.8,
+        215.2
+      ],
+      "position": [
+        612,
+        295.8,
+        207.6
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "R5 · Bench stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 247,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        149.8,
+        215.2
+      ],
+      "position": [
+        -612,
+        295.8,
+        207.6
+      ],
+      "rotationX": 0
+    },
+    {
       "name": "S2 · Table / backrest board",
       "area": "slat",
       "stock": [
@@ -733,6 +791,122 @@
         -691,
         -638,
         358.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T3 · Table stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 255,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        254.1,
+        89
+      ],
+      "position": [
+        688,
+        -512,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T3 · Table stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 255,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        254.1,
+        89
+      ],
+      "position": [
+        -688,
+        -512,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T4 · Bench stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 233,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        232.1,
+        89
+      ],
+      "position": [
+        688,
+        -236.1,
+        672.5
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "T4 · Bench stop",
+      "area": "stop",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 233,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        232.1,
+        89
+      ],
+      "position": [
+        -688,
+        -236.1,
+        672.5
       ],
       "rotationX": 0
     },

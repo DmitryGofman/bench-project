@@ -51,7 +51,7 @@ N_TABLE, N_SEAT = 7, 3
 
 # x layers (right-hand side; the left side mirrors). Adjacent layers are 3 mm apart only where a pivot is.
 X = {'leg': (514, 552), 'rail': (552, 590), 'strut': (593, 631), 'apron': (631, 669),
-     'arm': (672, 710), 'frail': (634, 672)}     # front rail + leg inside the arm, arm outermost (video)
+     'arm': (672, 710), 'frail': (634, 672), 'stop': (669, 707)}     # front rail + leg inside the arm, arm outermost (video)
 BOARD_X = {'rear': 590, 'top': 760, 'front': 672}     # board half-lengths
 L0 = 1520
 
@@ -121,10 +121,16 @@ def lap_points(pa, pb, n, edge=15.0, avoid=()):
     else: offs = [(-0.8, 0.25), (0, -0.25), (0.8, 0.25)]
     out = []
     width = 30.0
+    # candidate grid inside the usable area; each fastener takes the free spot nearest its target
+    x0, y0, x1, y1 = inner.bounds
+    grid = [(x0 + i*2.0, y0 + j*2.0) for i in range(int((x1-x0)/2)+1) for j in range(int((y1-y0)/2)+1)]
+    grid = [g for g in grid if inner.contains(Point(g))]
     for fu, fv in offs[:n]:
-        p = Point(c.x + fu*half*ux + fv*width*vx, c.y + fu*half*uy + fv*width*vy)
-        if not inner.contains(p): p = nearest_points(inner, p)[0]
-        out.append((r3(p.x), r3(p.y)))
+        tx, ty = c.x + fu*half*ux + fv*width*vx, c.y + fu*half*uy + fv*width*vy
+        free = [g for g in grid if all(math.hypot(g[0]-q[0], g[1]-q[1]) >= 24.0 for q in out)]
+        if not free: raise SystemExit('no room for %d fasteners in this lap' % n)
+        g = min(free, key=lambda g: (g[0]-tx)**2 + (g[1]-ty)**2)
+        out.append((r3(g[0]), r3(g[1])))
     return out, ov.area
 
 
@@ -160,12 +166,30 @@ def main():
     R4 = part('R4', 'Rear frame stretcher', 'rear', 'rail', 'rail', rect(-10.0, 340.0, 100.0, 189.0))
     seat_rear_back = 334.0           # the table boards sweep a 349.5 radius about B: stay inside it
     seat_rear_front = seat_rear_back - (N_SEAT*WS + (N_SEAT-1)*GAP)
+    # R5: bench stop. Lies over the back leg R3 (same angle, same y), glued + bolted to the stretcher;
+    # its top is cut to the strut's underside in bench pose, so the strut lands on it.
     S1 = boards('S1', 'Rear seat board', 'rear', N_SEAT, WS, seat_rear_front, +1, Z_RAIL[1], Z_SEAT, BOARD_X['rear'])
 
     # ---- top (blue) ------------------------------------------------------------------------
     table_front = TABLE_REAR - (N_TABLE*WT + (N_TABLE-1)*GAP)
     T1 = part('T1', 'Table apron / backrest post', 'top', 'apron', 'rail', rect(table_front, TABLE_REAR, *Z_APRON))
     T2 = part('T2', 'Strut', 'top', 'strut', 'rail', band_round_end(B, 90 + STRUT_LEAN, Z_APRON[1]), 'Round end R44.5 on pivot B; top cut level with the apron top.')
+    strut_b = Polygon([kin.rot(q, B, -FOLD) for q in T2])
+    from shapely.geometry import LineString
+    def under(y):
+        g = strut_b.intersection(LineString([(y, -1000), (y, 2000)]))
+        return min(c[1] for c in g.coords)
+    tl = math.tan(math.radians(LEG_SPLAY))
+    def leg_front(z): return 195.0 + (Z_RAIL[1] - z)*tl              # R3 front edge (from splay_leg(195, …, +1))
+    wd = W/math.cos(math.radians(LEG_SPLAY))
+    zt = Z_RAIL[0]
+    for _ in range(4):                                             # top corners follow the strut underside
+        zl, zr = under(leg_front(zt)), under(leg_front(zt) + wd)
+        zt = (zl + zr)/2
+    zb = 100.0
+    R5 = part('R5', 'Bench stop', 'rear', 'strut', 'stop',
+              [[r3(leg_front(zb)), zb], [r3(leg_front(zb) + wd), zb], [r3(leg_front(zr) + wd), r3(zr)], [r3(leg_front(zl)), r3(zl)]],
+              'Lies over R3 at the same %g°; bottom flush with the stretcher, top cut to the strut underside (bench pose).' % LEG_SPLAY)
     S2 = boards('S2', 'Table / backrest board', 'top', N_TABLE, WT, TABLE_REAR, -1, Z_APRON[1], Z_TOP, BOARD_X['top'])
 
     # ---- front (green) -----------------------------------------------------------------------
@@ -184,6 +208,22 @@ def main():
     def arm_rear_flank(z):                     # the arm's table-side edge
         tl = math.tan(math.radians(ARM_LEAN))
         return A0[0] - (A0[1] - z)*tl + R/math.cos(math.radians(ARM_LEAN))
+    # ---- stops: blocks on the apron's outer face, flush with its top and bottom, one face cut to the arm.
+    # T3 meets the arm in table pose (stops the table opening further), T4 in bench pose (stops it folding further).
+    def flank(rel):
+        d = math.radians(270 - ARM_LEAN + rel)
+        u = (math.cos(d), math.sin(d)); n = (-u[1], u[0])
+        if n[1] < 0: n = (-n[0], -n[1])
+        f0 = (A0[0] + R*n[0], A0[1] + R*n[1])
+        return lambda z: f0[0] + (z - f0[1])/u[1]*u[0]
+    ft, fb = flank(0.0), flank(FOLD)
+    T3 = part('T3', 'Table stop', 'top', 'stop', 'stop',
+              [[r3(ft(Z_APRON[1])), Z_APRON[1]], [r3(table_front), Z_APRON[1]], [r3(table_front), Z_APRON[0]], [r3(ft(Z_APRON[0])), Z_APRON[0]]],
+              'Flush with the apron top, bottom and end; inner face cut to the arm (%.1f° from vertical).' % ARM_LEAN)
+    T4_END = -120.0
+    T4 = part('T4', 'Bench stop', 'top', 'stop', 'stop',
+              [[r3(fb(Z_APRON[1])), Z_APRON[1]], [r3(fb(Z_APRON[0])), Z_APRON[0]], [T4_END, Z_APRON[0]], [T4_END, Z_APRON[1]]],
+              'Flush with the apron top and bottom; face cut to the arm in bench pose (%.1f° from horizontal).' % abs(270 - ARM_LEAN + FOLD - 360))
     F3 = part('F3', 'Front seat leg', 'front', 'frail', 'rail', rect(seat_front_far, seat_front_far + W, 0.0, Z_RAIL[0]),
               'Square cut; flush with the seat end, stands inside the arm foot, top butts under F2.')
     rail_f = [[r3(seat_front_far), Z_RAIL[0]], [r3(arm_rear_flank(Z_RAIL[0])), Z_RAIL[0]],
@@ -225,10 +265,18 @@ def main():
     lap('J01', 'R1', R1, 'R2', R2, 3, 590, 'rear', avoid=keep_out)
     lap('J02', 'R1', R1, 'R3', R3, 3, 590, 'rear')
     lap('J03', 'R4', R4, 'R2', R2, 3, 590, 'rear')
-    lap('J04', 'R4', R4, 'R3', R3, 3, 590, 'rear')
+    r5c = Polygon(R5).intersection(Polygon(R4)).intersection(Polygon(R3)).centroid
+    lap('J04', 'R4', R4, 'R3', R3, 2, 590, 'rear', spec='Exterior PU glue + 2 × 5×70 screws (+ the R5 bolt)', avoid=[((r5c.x, r5c.y), 26.0)])
     board_screws('J05', 'S1', S1, 'R1', 571.0, Z_SEAT)
+    marks.append({'k': 'm8', 'part': 'R5', 'asm': 'rear', 'x': 631, 'y': r3(r5c.x), 'z': r3(r5c.y), 'label': '', 'joint': 'J14', 'spec': 'M8×130 through R5 + R4 + R3'})
+    joints.append({'id': 'J14', 'kind': 'glued + bolted lap', 'a': 'R5', 'b': 'R4 + R3', 'fastener': 'Exterior PU glue + 1 × M8×130 through R5, R4 and R3', 'qty': 1, 'drive': 'through'})
     lap('J06', 'T1', T1, 'T2', T2, 2, 669, 'top', k='m8', kind='bolted lap',
         spec='M8×80 hex bolt + 2 washers + nyloc, counterbored Ø24×12 both faces, glued', drive='through', avoid=keep_out)
+    pin_keep = [(p0, 16.0), (pb, 16.0), (A0, 30.0)]
+    for jid, pid, poly in (('J12', 'T3', T3), ('J13', 'T4', T4)):
+        lap(jid, pid, poly, 'T1', T1, 2, 707, 'top', spec='Exterior PU glue + 1 × M8×80 + 2 × 5×70 screws', avoid=pin_keep, kind='glued + bolted lap')
+        c = Polygon(poly).centroid
+        marks.append({'k': 'm8', 'part': pid, 'asm': 'top', 'x': 707, 'y': r3(c.x), 'z': r3(c.y), 'label': '', 'joint': jid, 'spec': 'M8 through %s + T1' % pid})
     board_screws('J07', 'S2', S2, 'T1', 650.0, Z_TOP)
     lap('J08', 'F1', F1, 'F2', F2, 3, 710, 'front')
     lap('J09', 'F1', F1, 'F3', F3, 3, 710, 'front')
@@ -254,7 +302,7 @@ def main():
     def span(m):
         if m['k'] == 'boardscrew': return (m['x']-35, m['x']+3)
         if m['k'] == 'screw': return (m['x']-70, m['x'])
-        if m['k'] == 'm8': return (m['x']-80, m['x'])
+        if m['k'] == 'm8': return (m['x']-(130 if m['part'] == 'R5' else 80), m['x'])
         return (m['x']-80, m['x'])
     rad = {'screw': 4.0, 'boardscrew': 4.0, 'm8': 12.0, 'pivot': 15.0, 'pin': 6.0}
     for i in range(len(marks)):
@@ -285,6 +333,16 @@ def main():
     ho_pts = [[round(th, 2), round(p, 2)] for th, p in ho if p is not None]
     ho_bad = [(th, p) for th, p in ho_pts if M.clashes(th, p)[0]]
 
+    # over-travel: can the table open past 0° or fold past 100° with the pin OUT, letting the
+    # front seat rock on one foot? Search every front-seat tilt within ±15°.
+    def overtravel(th_e, sign):
+        for dth in (0.25, 0.5, 1.0, 2.0):
+            for k in range(-60, 61):
+                h, fl = M.clashes(th_e + sign*dth, k*0.25)
+                if not h and fl < 0.3: return [th_e + sign*dth, k*0.25]
+        return None
+    over = {'table_opens': overtravel(0.0, +1), 'bench_folds': overtravel(-FOLD, -1)}
+
     def state(th, phi):
         h, fl = M.clashes(th, phi)
         if fl > 0.3: return 'blocked by floor'
@@ -312,7 +370,7 @@ def main():
 
     # ---- hardware ----------------------------------------------------------------------------
     n_screw = 2*sum(1 for m in marks if m['k'] in ('screw', 'boardscrew'))
-    n_m8 = 2*sum(1 for m in marks if m['k'] == 'm8')
+    n_m8 = 2*sum(1 for m in marks if m['k'] == 'm8' and m['part'] != 'R5')
     F['hardware'] = [
         {'id': 'H01', 'qty': 4, 'spec': 'M10×70 hex bolt, ISO 4017, A4-70 stainless (or HDG 8.8)', 'note': 'Pivots A and B, one per pivot per side.'},
         {'id': 'H02', 'qty': 4, 'spec': 'M10 nyloc nut, ISO 10511, A4', 'note': 'Torque fully: the bolt clamps the sleeve, not the timber.'},
@@ -321,7 +379,8 @@ def main():
         {'id': 'H05', 'qty': 8, 'spec': 'Plain bushing ID14 / OD18 × 20, oil-impregnated sintered bronze (or POM)', 'note': 'One in each member at each pivot, flush with the moving face.'},
         {'id': 'H06', 'qty': 4, 'spec': 'Thrust washer UHMW-PE, ID14.5 / OD40 / 3.0', 'note': 'Between the moving faces at each pivot.'},
         {'id': 'H07', 'qty': 2, 'spec': 'Ball-lock quick-release pin Ø10, stainless, grip ≥ 80, with lanyard', 'note': 'Optional (the video uses a rope). One per side, through F1 into T1 ("table" or "bench" hole): keeps the front seat from swinging while you lift the table.'},
-        {'id': 'H08', 'qty': n_m8, 'spec': 'M8×80 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Strut to apron, 2 per side. Counterbore Ø24×12 both faces.'},
+        {'id': 'H08', 'qty': n_m8, 'spec': 'M8×80 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Strut to apron (2 per side), T3 and T4 to apron (1 each per side). Counterbore Ø24×12 where a face moves past another part.'},
+        {'id': 'H12', 'qty': 2, 'spec': 'M8×130 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Bench stop R5 through stretcher R4 and leg R3, 1 per side.'},
         {'id': 'H09', 'qty': math.ceil(n_screw*1.1), 'spec': 'Exterior structural screw 5×70, countersunk Torx', 'note': '%d fitted + 10%% spare. Countersink flush.' % n_screw},
         {'id': 'H10', 'qty': 4, 'spec': 'Exterior structural screw 6×120', 'note': 'Front seat rail F2 down into leg F3, 2 per side.'},
         {'id': 'H11', 'qty': 1, 'spec': 'Exterior PU / D4 wood adhesive', 'note': 'All fixed laps. Not on moving faces.'},
@@ -329,7 +388,10 @@ def main():
     F['interfaces'] = [
         {'id': 'P-A', 'what': 'Pivot A · F1 ↔ T1', 'type': 'pivot bearing', 'spec': 'M10 bolt clamps a Ø14 stainless sleeve; both members on Ø14/Ø18 bushings; 3 mm UHMW thrust washer. Counterbore Ø30: 10 deep on F1 outer face, 15 deep on T1 inner face.'},
         {'id': 'P-B', 'what': 'Pivot B · T2 ↔ R1', 'type': 'pivot bearing', 'spec': 'Same stack as A. Counterbore Ø30: 10 deep on T2 outer face, 15 deep on R1 inner face.'},
-        {'id': 'FL', 'what': 'F1 + F3 feet ↔ floor (both poses)', 'type': 'support', 'spec': 'The front seat stands on two feet, so the floor sets it level in table and bench pose. Loading the table or leaning on the backrest pushes A down into the front seat, which the floor carries — no stop blocks.'},
+        {'id': 'ST-T', 'what': 'T3 ↔ F1 (table)', 'type': 'hard stop', 'spec': 'T3 face lies on the arm in table pose: the table cannot open past flat and the arm cannot swing out.'},
+        {'id': 'ST-B', 'what': 'T4 ↔ F1 (bench)', 'type': 'hard stop', 'spec': 'T4 face lies on the arm in bench pose: the arm cannot fold further against the backrest.'},
+        {'id': 'ST-S', 'what': 'R5 ↔ T2 (bench)', 'type': 'hard stop', 'spec': 'The strut lands on R5 in bench pose: the backrest cannot tip further back, even if the front seat rocks.'},
+        {'id': 'FL', 'what': 'F1 + F3 feet ↔ floor (both poses)', 'type': 'support', 'spec': 'The front seat stands on two feet, so the floor sets it level in table and bench pose.'},
         {'id': 'SUP', 'what': 'S3 ↔ R1 (bench)', 'type': 'support contact', 'spec': 'In bench pose the front seat boards rest on the bare front part of R1 (0 … %d), in front of the rear seat.' % int(seat_rear_front)},
         {'id': 'LK', 'what': 'Lock pin L · F1 ↔ T1', 'type': 'positive lock', 'spec': 'Ø10 ball-lock pin; one Ø10.5 hole in F1, two in T1 (table / bench) %.0f mm from A. Match-drill in each pose.' % 34},
     ]
@@ -337,11 +399,12 @@ def main():
         {'part': 'Stock', 'detail': 'One stock size: 38×89 for every part. Everything is a straight saw cut except the round ends on R1, T2 and F1 (R44.5, jigsaw + sander, drill the pivot centre first).'},
         {'part': 'Rear frame', 'detail': 'R2 and R3 splay %g° (saw cuts at %g°). Glue + 3 screws through R1 into each leg and through R4 into each leg.' % (LEG_SPLAY, LEG_SPLAY)},
         {'part': 'Table', 'detail': 'T2 leans %g° forward; glue + 2 × M8 to T1. Apron and boards flush at both ends.' % STRUT_LEAN},
+        {'part': 'Stops', 'detail': 'T3, T4 and R5 are 38×89 offcuts with straight cuts. T3/T4 sit flush with the apron top and bottom (T3 also with its end); cut their angled face against the arm with the bench assembled in each pose. R5 lies over leg R3 at the same angle; cut its top with the bench folded so the strut lands on it.'},
         {'part': 'Front seat', 'detail': 'F1 at %.1f° from vertical, outermost, laps F2 and the foot of F3 (glue + 3 screws each from the F1 outer face). F2 inner end cut at the same angle under F1. F3 butts under F2: glue + 2 × 6×120 down through F2 before the boards.' % ARM_LEAN},
         {'part': 'Pivots A, B', 'detail': 'Bore Ø18 in both members, press bushings flush with the moving faces, Ø14 sleeve, M10 tightened fully, 3 mm thrust washer.'},
         {'part': 'Lock pin', 'detail': 'Drill Ø10.5 through F1 into T1 in table pose; fold, then drill the bench hole through the same F1 hole.'},
     ]
-    F['validation'] = {'guided': len(guided), 'jams': len(jams) + len(ho_bad), 'fasteners': len(bad), 'rigidity': rig,
+    F['validation'] = {'overtravel': over, 'guided': len(guided), 'jams': len(jams) + len(ho_bad), 'fasteners': len(bad), 'rigidity': rig,
                        'pin': {'radius_from_A': 34.0, 'F1_hole': [r3(p0[0]), r3(p0[1])], 'T1_table': [r3(p0[0]), r3(p0[1])], 'T1_bench': [r3(pb[0]), r3(pb[1])]}}
     F['handsoff'] = ho_pts
     F['meta'] = meta
@@ -356,6 +419,7 @@ def main():
     for g in guided[:6]: print('  guided', g)
     for b in bad[:10]: print('  fastener', b)
     print('rigidity', json.dumps(rig, ensure_ascii=False))
+    print('over-travel (pin out):', over)
     print('meta', meta)
     print('hands-off', ho_pts[::20])
 

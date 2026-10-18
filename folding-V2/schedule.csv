@@ -11,3 +11,6 @@ label,qty,cut_length_mm,end_cuts,section,laminations,boards,total_mm,mass_kg
 "R1 · Rear seat rail",2,380,"square","38×89",1,2,760,1.29
 "R4 · Rear frame stretcher",2,350,"square","38×89",1,2,700,1.18
 "F3 · Front seat leg",2,323,"square","38×89",1,2,646,1.09
+"T3 · Table stop",2,255,"square","38×89",1,2,510,0.86
+"R5 · Bench stop",2,247,"square","38×89",1,2,494,0.84
+"T4 · Bench stop",2,233,"square","38×89",1,2,466,0.79

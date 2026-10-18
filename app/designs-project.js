@@ -193,10 +193,11 @@ DESIGNS.folding = {
               'T2 and S1 lengthened, bushed M10 pivots, Ø10 indexing lock pin. Drag <i>Fold</i> to run the mechanism; '+
               '<i>Hands-off</i> lets the front seat hang under gravity the way it really will.',
          set:{ L:1520, fold:0, motion:'hands', conn:true } },
-    V2:{ name:'V2 Simple', tag:'1520 long, 38×89 throughout. Two pivots per side, no stop blocks, 3-board seats.',
+    V2:{ name:'V2 Simple', tag:'1520 long, 38×89 throughout. Two pivots per side, three flush stops, 3-board seats.',
          note:'<b>V2.</b> Matches <code>folding-V2/</code>, drawn from the video: rear seat on splayed legs, '+
               'table on a straight strut, front seat triangulated by the long arm, which is the outermost part. '+
-              'All 38×89. No stop blocks: the front seat stands on two feet, so the floor holds it in both poses.',
+              'All 38×89. Three stops cut from offcuts and set flush with the parts they sit on: T3 (table end), '+
+              'T4 (under the table, takes the arm in bench pose) and R5 (over the back leg, takes the strut in bench pose).',
          set:{ L:1520, fold:0, motion:'hands', conn:true } }
   },
   build:function(P, ctx, variantId){
@@ -262,12 +263,13 @@ DESIGNS.folding = {
       { s: V.guided===0 ? 'ok':'fail', t:'<b>Mechanism, held level.</b> 0–100° swept in 0.25° steps against every timber pair and the floor.', v: V.guided+' clashes' },
       { s: V.jams===0 ? 'ok':'fail', t:'<b>Mechanism, hands-off.</b> Front seat hangs from A under gravity and rides the floor; it comes down on both feet at each end. No jams.', v: V.jams+' jams' },
       { s: V.fasteners===0 ? 'ok':'fail', t:'<b>Fasteners in 3D.</b> Screws, M8 bolts, pivots and pin holes: spacing, ≥ 9 mm edge distance, clear of pivot B.', v: V.fasteners+' clashes' },
+      { s: (V.overtravel.table_opens || V.overtravel.bench_folds) ? 'fail':'ok', t:'<b>No over-travel (pin out).</b> Searched every front-seat tilt within ±15°: the table cannot open past flat (T3) and the bench cannot fold past 100° (T4, R5).', v: (V.overtravel.table_opens || V.overtravel.bench_folds) ? 'moves' : 'locked' },
       { s:'ok', t:'<b>Endpoints locked (pin in).</b> Table: unfolding '+V.rigidity.pin_in.table['unfold 1°']+'; folding needs the whole front seat lifted. '+
-              'Bench: '+V.rigidity.pin_in.bench['fold 1° more']+' both ways. Pin out, the floor still carries table and backrest loads; the pin only stops the front seat swinging while you lift.', v:'pin r '+V.pin.radius_from_A+' mm' },
-      { s:'warn', t:'<b>Not load-rated.</b> Glue on the strut-to-apron lap and the arm laps is mandatory. Proof-load a prototype — see folding-V2/design-notes.md.', v:'prototype' },
+              'Bench: '+V.rigidity.pin_in.bench['fold 1° more']+' both ways. The pin (or a rope, as in the video) only stops the front seat swinging while you lift.', v:'pin r '+V.pin.radius_from_A+' mm' },
+      { s:'warn', t:'<b>Not load-rated.</b> Glue on the strut-to-apron lap, the arm laps and the stops is mandatory. Proof-load a prototype — see folding-V2/design-notes.md.', v:'prototype' },
       { s: mode==='FOLDING' ? 'warn':'ok', t:'<b>Pose: '+mode+'.</b> '+
-          (atTable ? 'Pins in the "table" holes; front seat on its two feet carries the table end.' :
-           atBench ? 'Pins in the "bench" holes; front seat on its two feet, its boards on the front of R1.' :
+          (atTable ? 'Pins in the "table" holes; F1 on T3; front seat on its two feet.' :
+           atBench ? 'Pins in the "bench" holes; F1 on T4, strut on R5, front seat on its two feet.' :
            'Pins out. Table at '+(-th)+'°, front seat '+(P.motion==='guided' ? 'held level' : 'tilted '+phi.toFixed(0)+'°')+'.'), v: (-th)+'°' }
     ] : [
       { s: V.guided===0 ? 'ok':'fail', t:'<b>Mechanism, held level.</b> 0–100° swept in 0.25° steps against every timber pair.', v: V.guided+' clashes' },

@@ -5,15 +5,25 @@ References: `sketch.png` (Dima, 2026-10-18) and `ref-video-bench.jpg` (video sti
 
 ## The geometry
 
-Three sub-assemblies, two pivots per side, nine frame parts per side, **one stock size (38×89) for everything**, and **no stop blocks**.
+Three sub-assemblies, two pivots per side, **one stock size (38×89) for everything**, and three small stops set flush with the parts they sit on.
 
 | Sketch colour | Assembly | Parts (per side) | Boards |
 |---|---|---|---|
-| black | rear seat, fixed | R1 seat rail (rounded front end = pivot **B**), R2 + R3 legs splayed 15°, R4 stretcher | 3 × S1 |
-| blue | table / backrest, turns 100° about B | T1 apron, T2 strut (rounded end on B, leans 8°) | 7 × S2 |
+| black | rear seat, fixed | R1 seat rail (rounded front end = pivot **B**), R2 + R3 legs splayed 15°, R4 stretcher, R5 bench stop | 3 × S1 |
+| blue | table / backrest, turns 100° about B | T1 apron, T2 strut (rounded end on B, leans 8°), T3 table stop, T4 bench stop | 7 × S2 |
 | green | front seat, hangs from **A** | F1 arm (rounded end on A, 38.6° from vertical, outermost part), F2 seat rail, F3 vertical leg | 3 × S3 |
 
-F1 laps F2 and the foot of F3, so the front seat is a rigid triangle standing on two feet. That is why no stoppers are needed. In table pose a load on the table pushes A down into the front seat. In bench pose, leaning on the backrest pushes A down and back. Either way the front seat's two feet carry it to the floor.
+F1 laps F2 and the foot of F3, so the front seat is a rigid triangle standing on two feet.
+
+### Stops (what keeps it from opening too far)
+
+| Stop | Pose | Stops | Looks like |
+|---|---|---|---|
+| T3 | table | the table opening past flat, and the arm swinging out | apron doubler at the table end: flush top, bottom and end, one face cut to the arm |
+| T4 | bench | the arm folding further against the backrest | apron doubler behind the arm: flush top and bottom, one face cut to the arm |
+| R5 | bench | the backrest tipping further back (the strut lands on it) | a second layer over back leg R3, same 15° angle, top cut to the strut |
+
+In table pose T3, the arm and T4 make one flush outer layer along the apron. Without T4 and R5 the bench can fold past 100° by rocking the front seat off its feet, and without T3 the table can open past flat the same way; the simulation found both. With the three stops it is locked at both ends, pin in or out.
 
 How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is back at the same height. The front seat moves 727 rearward and lands right in front of the rear seat, its first board resting on the front of R1.
 
@@ -23,11 +33,11 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 | Seats | 450 high, 3 boards (279) each; rear seat 35 and front seat 39 outside the table edges |
 | Bench | seat 564 deep, backrest top 952 |
 | Floor footprint (table) | -957 … 398 |
-| Parts | 30 pieces, 12 bars of 38×89 × 2400 |
+| Parts | 36 pieces, see `cutting-plan.txt` for bars of 38×89 × 2400 |
 
 ## Clean-up from the first V2
 
-- **Stopper removed.** The front seat's two feet and the floor do its job.
+- **Stops redone.** P1's three stops (T4, T5, S1) became T3, T4 and R5: offcut blocks set flush with the apron or leg they sit on, nothing hanging below or sticking out.
 - **Arm is the outermost part,** as in the video. Its foot's outer corner lands exactly on the end of the front seat.
 - **Front seat rail** has its inner end cut at the arm angle, so it ends under the arm and doesn't show past it.
 - **All 38×89:** seven table boards and three boards per seat, so the seats are wider, as in the video. No ripping.
@@ -38,8 +48,8 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 - Planar rigid-body simulation (`kin.py`, calibrated against P1 Rev 2's recorded path to within 0.25°).
   - Held level, 0–100° in 0.25° steps, every timber pair in overlapping layers plus the floor: **0 clashes**.
   - Hands-off (front seat hangs from A, rides the floor): **0 jams**, at most 21° tilt mid-fold.
-- With the pin in: table, unfolding is blocked by the floor. Bench, both directions are blocked.
-- Without the pin, the floor still carries table and backrest loads. The pin, or a rope as in the video, only stops the front seat swinging while you lift.
+- **Over-travel, pin out:** every front-seat tilt within ±15° searched. The table cannot open past flat (T3) and the bench cannot fold past 100° (T4 + R5).
+- With the pin in, both poses are also blocked by the floor. The pin, or a rope as in the video, only stops the front seat swinging while you lift.
 - The app's own clash check: 0 at every 2° from 0 to 100°, both motion modes.
 - Fasteners: spacing, edge distance, clear of the pivots. Board spans comfortable.
 - P1 renders exactly as before.
@@ -47,7 +57,6 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 ## Not done / needs a prototype
 
 - **Not load-rated.** The strut-to-apron lap (2 × M8 + glue) and the arm laps carry everything. Proof-load a prototype.
-- Without a stopper, the table relies on the front seat's feet not sliding on the floor. On a slippery floor, use the pins or rubber feet.
 - Rear tip stability was judged from the footprint only: the rear foot is at 398.
 
 ## Cut list (38 × 89 throughout)
@@ -58,9 +67,12 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 | R2 Rear frame front leg | 2 | 38 × 89 | 451 | (450.381, 0) → (426.534, 89) → (0, 89) → (23.848, 0) |
 | R3 Rear frame back leg | 2 | 38 × 89 | 451 | (23.848, 89) → (0, 0) → (426.534, 0) → (450.381, 89) |
 | R4 Rear frame stretcher | 2 | 38 × 89 | 350 | (0, 89) → (0, 0) → (350, 0) → (350, 89) |
+| R5 Bench stop | 2 | 38 × 89 | 247 | (222.836, 0) → (246.683, 89) → (27.178, 89) → (0, 0) |
 | S1 Rear seat board | 3 | 38 × 89 | 1180 | rectangle 1180 × 89 |
 | T1 Table apron / backrest post | 2 | 38 × 89 | 659 | (0, 89) → (0, 0) → (659, 0) → (659, 89) |
 | T2 Strut | 2 | 38 × 89 | 404 | one end rounded R44.5 on the pivot; see drawing |
+| T3 Table stop | 2 | 38 × 89 | 255 | (0, 0) → (254.091, 0) → (254.091, 89) → (71.009, 89) |
+| T4 Bench stop | 2 | 38 × 89 | 233 | (232.148, 0) → (68.807, 89) → (0, 89) → (0, -0) |
 | S2 Table / backrest board | 7 | 38 × 89 | 1520 | rectangle 1520 × 89 |
 | F1 Arm (table leg) | 2 | 38 × 89 | 941 | one end rounded R44.5 on the pivot; see drawing |
 | F2 Front seat rail | 2 | 38 × 89 | 443 | (442.572, 89) → (71.009, 89) → (0, 0) → (442.572, 0) |

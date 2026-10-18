@@ -7,7 +7,7 @@ Based on Furniture Kit prototype 04 (`source-prototype04.html`, unchanged), with
 | Design | Variants | Matches folder | Notes |
 |---|---|---|---|
 | Folding picnic bench | P1 Rev 2 | `folding-P1/rev2/` | Fold slider (0–100°), hands-off or held-level motion, pivots / pins / bolts / screws shown in 3D, Hardware tab, mechanism checks |
-| Folding picnic bench | V2 Simple | `folding-V2/` | From the video: three sub-assemblies, two pivots per side, no stop blocks, all 38×89. See `folding-V2/design-notes.md` |
+| Folding picnic bench | V2 Simple | `folding-V2/` | From the video: three sub-assemblies, two pivots per side, three flush stops, all 38×89. See `folding-V2/design-notes.md` |
 | Simple garden bench | G1 | `simple-G1/` | Parametric; reproduces the exported parts.json part-for-part |
 | Modern frame bench | M1, M2 | `modern-M1/`, `modern-M2/` | Parametric; reproduces the exported parts.json part-for-part |
 
