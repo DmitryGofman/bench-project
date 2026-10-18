@@ -62,7 +62,7 @@ for p in F['parts']:
     qty.setdefault(k, {'p': p, 'n': 0})
     qty[k]['n'] += 1
 rows = ['| Part | Qty | Stock | Blank length | Marking-out outline (length, width), mm |', '|---|---|---|---|---|']
-order = ['R1', 'R2', 'R3', 'R4', 'S1', 'T1', 'T2', 'T3', 'S2', 'F1', 'F2', 'F3', 'S3']
+order = ['R1', 'R2', 'R3', 'R4', 'S1', 'T1', 'T2', 'S2', 'F1', 'F2', 'F3', 'S3']
 for k in order:
     e = qty[k]; p = e['p']; n = e['n']
     # right-side parts are listed once per side already (R) -> the data holds one per pair; count both sides

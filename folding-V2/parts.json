@@ -277,12 +277,12 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
       "cutLength": 1180,
       "endCutDeg": [
@@ -291,12 +291,12 @@
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        152,
+        99.5,
         431
       ],
       "rotationX": 0
@@ -306,12 +306,12 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
       "cutLength": 1180,
       "endCutDeg": [
@@ -320,12 +320,12 @@
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        226,
+        194.5,
         431
       ],
       "rotationX": 0
@@ -335,12 +335,12 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
       "cutLength": 1180,
       "endCutDeg": [
@@ -349,12 +349,12 @@
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        300,
+        289.5,
         431
       ],
       "rotationX": 0
@@ -371,19 +371,19 @@
         38,
         89
       ],
-      "cutLength": 578,
+      "cutLength": 659,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        578,
+        659,
         89
       ],
       "position": [
         650,
-        -269,
+        -309.5,
         672.5
       ],
       "rotationX": 0
@@ -400,19 +400,19 @@
         38,
         89
       ],
-      "cutLength": 578,
+      "cutLength": 659,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        578,
+        659,
         89
       ],
       "position": [
         -650,
-        -269,
+        -309.5,
         672.5
       ],
       "rotationX": 0
@@ -476,74 +476,16 @@
       "rotationX": 0
     },
     {
-      "name": "T3 · Table spread stop",
-      "area": "stop",
-      "stock": [
-        38,
-        89
-      ],
-      "laminations": 1,
-      "section": [
-        38,
-        89
-      ],
-      "cutLength": 169,
-      "endCutDeg": [
-        0,
-        0
-      ],
-      "size": [
-        38,
-        168.8,
-        89
-      ],
-      "position": [
-        688,
-        -473.6,
-        672.5
-      ],
-      "rotationX": 0
-    },
-    {
-      "name": "T3 · Table spread stop",
-      "area": "stop",
-      "stock": [
-        38,
-        89
-      ],
-      "laminations": 1,
-      "section": [
-        38,
-        89
-      ],
-      "cutLength": 169,
-      "endCutDeg": [
-        0,
-        0
-      ],
-      "size": [
-        38,
-        168.8,
-        89
-      ],
-      "position": [
-        -688,
-        -473.6,
-        672.5
-      ],
-      "rotationX": 0
-    },
-    {
       "name": "S2 · Table / backrest board",
       "area": "slat",
       "stock": [
         38,
-        140
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        140
+        89
       ],
       "cutLength": 1520,
       "endCutDeg": [
@@ -552,12 +494,12 @@
       ],
       "size": [
         38,
-        140,
+        89,
         38
       ],
       "position": [
         0,
-        -50,
+        -24.5,
         736
       ],
       "rotationX": 0
@@ -567,12 +509,12 @@
       "area": "slat",
       "stock": [
         38,
-        140
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        140
+        89
       ],
       "cutLength": 1520,
       "endCutDeg": [
@@ -581,12 +523,12 @@
       ],
       "size": [
         38,
-        140,
+        89,
         38
       ],
       "position": [
         0,
-        -196,
+        -119.5,
         736
       ],
       "rotationX": 0
@@ -596,12 +538,12 @@
       "area": "slat",
       "stock": [
         38,
-        140
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        140
+        89
       ],
       "cutLength": 1520,
       "endCutDeg": [
@@ -610,12 +552,12 @@
       ],
       "size": [
         38,
-        140,
+        89,
         38
       ],
       "position": [
         0,
-        -342,
+        -214.5,
         736
       ],
       "rotationX": 0
@@ -625,12 +567,12 @@
       "area": "slat",
       "stock": [
         38,
-        140
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        140
+        89
       ],
       "cutLength": 1520,
       "endCutDeg": [
@@ -639,12 +581,99 @@
       ],
       "size": [
         38,
-        140,
+        89,
         38
       ],
       "position": [
         0,
-        -488,
+        -309.5,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        89,
+        38
+      ],
+      "position": [
+        0,
+        -404.5,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        89,
+        38
+      ],
+      "position": [
+        0,
+        -499.5,
+        736
+      ],
+      "rotationX": 0
+    },
+    {
+      "name": "S2 · Table / backrest board",
+      "area": "slat",
+      "stock": [
+        38,
+        89
+      ],
+      "laminations": 1,
+      "section": [
+        38,
+        89
+      ],
+      "cutLength": 1520,
+      "endCutDeg": [
+        0,
+        0
+      ],
+      "size": [
+        38,
+        89,
+        38
+      ],
+      "position": [
+        0,
+        -594.5,
         736
       ],
       "rotationX": 0
@@ -661,19 +690,19 @@
         38,
         89
       ],
-      "cutLength": 847,
+      "cutLength": 941,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        484.1,
+        638,
         717
       ],
       "position": [
         691,
-        -561.1,
+        -638,
         358.5
       ],
       "rotationX": 0
@@ -690,19 +719,19 @@
         38,
         89
       ],
-      "cutLength": 847,
+      "cutLength": 941,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        484.1,
+        638,
         717
       ],
       "position": [
         -691,
-        -561.1,
+        -638,
         358.5
       ],
       "rotationX": 0
@@ -730,8 +759,8 @@
         323
       ],
       "position": [
-        729,
-        -751.8,
+        653,
+        -912.5,
         161.5
       ],
       "rotationX": 0
@@ -759,8 +788,8 @@
         323
       ],
       "position": [
-        -729,
-        -751.8,
+        -653,
+        -912.5,
         161.5
       ],
       "rotationX": 0
@@ -777,19 +806,19 @@
         38,
         89
       ],
-      "cutLength": 361,
+      "cutLength": 443,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        361,
+        442.6,
         89
       ],
       "position": [
-        729,
-        -650.5,
+        653,
+        -735.7,
         367.5
       ],
       "rotationX": 0
@@ -806,19 +835,19 @@
         38,
         89
       ],
-      "cutLength": 361,
+      "cutLength": 443,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        361,
+        442.6,
         89
       ],
       "position": [
-        -729,
-        -650.5,
+        -653,
+        -735.7,
         367.5
       ],
       "rotationX": 0
@@ -828,26 +857,26 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
-      "cutLength": 1496,
+      "cutLength": 1344,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        -649,
+        -722.5,
         431
       ],
       "rotationX": 0
@@ -857,26 +886,26 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
-      "cutLength": 1496,
+      "cutLength": 1344,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        -723,
+        -817.5,
         431
       ],
       "rotationX": 0
@@ -886,26 +915,26 @@
       "area": "slat",
       "stock": [
         38,
-        68
+        89
       ],
       "laminations": 1,
       "section": [
         38,
-        68
+        89
       ],
-      "cutLength": 1496,
+      "cutLength": 1344,
       "endCutDeg": [
         0,
         0
       ],
       "size": [
         38,
-        68,
+        89,
         38
       ],
       "position": [
         0,
-        -797,
+        -912.5,
         431
       ],
       "rotationX": 0

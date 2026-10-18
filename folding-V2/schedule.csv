@@ -1,14 +1,13 @@
 label,qty,cut_length_mm,end_cuts,section,laminations,boards,total_mm,mass_kg
-"S2 · Table / backrest board",4,1520,"square","38×140",1,4,6080,16.17
-"S3 · Front seat board",3,1496,"square","38×68",1,3,4488,5.80
-"S1 · Rear seat board",3,1180,"square","38×68",1,3,3540,4.57
-"F1 · Arm (table leg)",2,847,"square","38×89",1,2,1694,2.86
-"T1 · Table apron / backrest post",2,578,"square","38×89",1,2,1156,1.95
+"S2 · Table / backrest board",7,1520,"square","38×89",1,7,10640,17.99
+"S3 · Front seat board",3,1344,"square","38×89",1,3,4032,6.82
+"S1 · Rear seat board",3,1180,"square","38×89",1,3,3540,5.99
+"F1 · Arm (table leg)",2,941,"square","38×89",1,2,1882,3.18
+"T1 · Table apron / backrest post",2,659,"square","38×89",1,2,1318,2.23
 "R2 · Rear frame front leg",2,451,"square","38×89",1,2,902,1.53
 "R3 · Rear frame back leg",2,451,"square","38×89",1,2,902,1.53
+"F2 · Front seat rail",2,443,"square","38×89",1,2,886,1.50
 "T2 · Strut",2,404,"square","38×89",1,2,808,1.37
 "R1 · Rear seat rail",2,380,"square","38×89",1,2,760,1.29
-"F2 · Front seat rail",2,361,"square","38×89",1,2,722,1.22
 "R4 · Rear frame stretcher",2,350,"square","38×89",1,2,700,1.18
 "F3 · Front seat leg",2,323,"square","38×89",1,2,646,1.09
-"T3 · Table spread stop",2,169,"square","38×89",1,2,338,0.57
