@@ -13,5 +13,5 @@
 | S2 Table / backrest board | 7 | 38 × 89 | 1520 | rectangle 1520 × 89 |
 | F1 Arm (table leg) | 2 | 38 × 89 | 941 | one end rounded R44.5 on the pivot; see drawing |
 | F2 Front seat rail | 2 | 38 × 89 | 443 | (442.572, 89) → (71.009, 89) → (0, 0) → (442.572, 0) |
-| F3 Front seat leg | 2 | 38 × 89 | 323 | (0, 0) → (323, 0) → (323, 89) → (0, 89) |
+| F3 Front seat leg | 2 | 38 × 89 | 412 | (0, 0) → (412, 0) → (412, 89) → (0, 89) |
 | S3 Front seat board | 3 | 38 × 89 | 1344 | rectangle 1344 × 89 |

@@ -11,9 +11,9 @@ Three sub-assemblies, two pivots per side, **one stock size (38×89) for everyth
 |---|---|---|---|
 | black | rear seat, fixed | R1 seat rail (rounded front end = pivot **B**), R2 + R3 legs splayed 15°, R4 stretcher, R5 bench stop | 3 × S1 |
 | blue | table / backrest, turns 100° about B | T1 apron, T2 strut (rounded end on B, leans 8°), T3 table stop, T4 bench stop | 7 × S2 |
-| green | front seat, hangs from **A** | F1 arm (rounded end on A, 38.6° from vertical, outermost part), F2 seat rail, F3 vertical leg | 3 × S3 |
+| green | front seat, hangs from **A** | F1 arm (rounded end on A, 38.6° from vertical, outermost part), F2 seat rail, F3 vertical leg lapped on the inside of F2 | 3 × S3 |
 
-F1 laps F2 and the foot of F3, so the front seat is a rigid triangle standing on two feet.
+F1 laps F2 where it crosses it, and F3 runs full height on the inside of F2, screwed through from the side (no butt joint). The front seat stands on two feet: the arm foot and F3.
 
 ### Stops (what keeps it from opening too far)
 
@@ -76,7 +76,7 @@ How it folds: A is 363.5 in front of B and 305 above it, so after 100° it is ba
 | S2 Table / backrest board | 7 | 38 × 89 | 1520 | rectangle 1520 × 89 |
 | F1 Arm (table leg) | 2 | 38 × 89 | 941 | one end rounded R44.5 on the pivot; see drawing |
 | F2 Front seat rail | 2 | 38 × 89 | 443 | (442.572, 89) → (71.009, 89) → (0, 0) → (442.572, 0) |
-| F3 Front seat leg | 2 | 38 × 89 | 323 | (0, 0) → (323, 0) → (323, 89) → (0, 89) |
+| F3 Front seat leg | 2 | 38 × 89 | 412 | (0, 0) → (412, 0) → (412, 89) → (0, 89) |
 | S3 Front seat board | 3 | 38 × 89 | 1344 | rectangle 1344 × 89 |
 
 ## Files

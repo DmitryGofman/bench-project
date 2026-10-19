@@ -10,7 +10,7 @@ Three sub-assemblies, two pivots per side:
   top   (blue)   apron T1 under four table boards S2, straight strut T2 down to pivot B
                  (rounded end). No stop blocks: the front seat stands on two feet in both poses.
   front (green)  arm F1 (rounded end at pivot A on the apron, runs to the floor), seat rail F2,
-                 vertical leg F3 under the rail; F1 laps both, closing a triangle. Three seat boards S3.
+                 vertical leg F3 lapped on the inside of the rail (screwed from the side); F1 laps the rail. Three seat boards S3.
 
 Folding: the top turns 100° about B. A is placed so that it ends at the same height it started
 (|A_y - B_y| = h·tan 50°), so the front seat just translates 2·|A_y| rearward and lands in front of
@@ -51,7 +51,7 @@ N_TABLE, N_SEAT = 7, 3
 
 # x layers (right-hand side; the left side mirrors). Adjacent layers are 3 mm apart only where a pivot is.
 X = {'leg': (514, 552), 'rail': (552, 590), 'strut': (593, 631), 'apron': (631, 669),
-     'arm': (672, 710), 'frail': (634, 672), 'stop': (669, 707)}     # front rail + leg inside the arm, arm outermost (video)
+     'arm': (672, 710), 'frail': (634, 672), 'fleg': (596, 634), 'stop': (669, 707)}     # front rail + leg inside the arm, arm outermost (video)
 BOARD_X = {'rear': 590, 'top': 760, 'front': 672}     # board half-lengths
 L0 = 1520
 
@@ -224,8 +224,8 @@ def main():
     T4 = part('T4', 'Bench stop', 'top', 'stop', 'stop',
               [[r3(fb(Z_APRON[1])), Z_APRON[1]], [r3(fb(Z_APRON[0])), Z_APRON[0]], [T4_END, Z_APRON[0]], [T4_END, Z_APRON[1]]],
               'Flush with the apron top and bottom; face cut to the arm in bench pose (%.1f° from horizontal).' % abs(270 - ARM_LEAN + FOLD - 360))
-    F3 = part('F3', 'Front seat leg', 'front', 'frail', 'rail', rect(seat_front_far, seat_front_far + W, 0.0, Z_RAIL[0]),
-              'Square cut; flush with the seat end, stands inside the arm foot, top butts under F2.')
+    F3 = part('F3', 'Front seat leg', 'front', 'fleg', 'rail', rect(seat_front_far, seat_front_far + W, 0.0, Z_RAIL[1]),
+              'Square cut; flush with the seat end, full height to the rail top, lapped on the inside face of F2.')
     rail_f = [[r3(seat_front_far), Z_RAIL[0]], [r3(arm_rear_flank(Z_RAIL[0])), Z_RAIL[0]],
               [r3(arm_rear_flank(Z_RAIL[1])), Z_RAIL[1]], [r3(seat_front_far), Z_RAIL[1]]]
     F2 = part('F2', 'Front seat rail', 'front', 'frail', 'rail', rail_f,
@@ -279,9 +279,7 @@ def main():
         marks.append({'k': 'm8', 'part': pid, 'asm': 'top', 'x': 707, 'y': r3(c.x), 'z': r3(c.y), 'label': '', 'joint': jid, 'spec': 'M8 through %s + T1' % pid})
     board_screws('J07', 'S2', S2, 'T1', 650.0, Z_TOP)
     lap('J08', 'F1', F1, 'F2', F2, 3, 710, 'front')
-    lap('J09', 'F1', F1, 'F3', F3, 3, 710, 'front')
-    joints.append({'id': 'J10', 'kind': 'glued butt', 'a': 'F3', 'b': 'F2', 'fastener': 'Exterior PU glue + 2 × 6×120 screws', 'qty': 2,
-                   'drive': 'down through the top of F2 into F3, before the seat boards go on'})
+    lap('J09', 'F2', F2, 'F3', F3, 3, 672, 'front')
     board_screws('J11', 'S3', S3, 'F2', 653.0, Z_SEAT)
 
     # de-duplicate the per-board joint rows into one row per board (keep ids unique)
@@ -381,7 +379,6 @@ def main():
         {'id': 'H07', 'qty': 2, 'spec': 'Ball-lock quick-release pin Ø10, stainless, grip ≥ 80, with lanyard', 'note': 'Optional (the video uses a rope). One per side, through F1 into T1 ("table" or "bench" hole): keeps the front seat from swinging while you lift the table.'},
         {'id': 'H08', 'qty': n_m8, 'spec': 'M8×80 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Strut to apron (2 per side), T3 and T4 to apron (1 each per side). Counterbore Ø24×12 where a face moves past another part.'},
         {'id': 'H09', 'qty': math.ceil(n_screw*1.1), 'spec': 'Exterior structural screw 5×70, countersunk Torx', 'note': '%d fitted + 10%% spare. Countersink flush.' % n_screw},
-        {'id': 'H10', 'qty': 4, 'spec': 'Exterior structural screw 6×120', 'note': 'Front seat rail F2 down into leg F3, 2 per side.'},
         {'id': 'H11', 'qty': 1, 'spec': 'Exterior PU / D4 wood adhesive', 'note': 'All fixed laps. Not on moving faces.'},
         {'id': 'H12', 'qty': 2, 'spec': 'M8×130 hex bolt + 2 × ISO 7089 washers + M8 nyloc, A4', 'note': 'Bench stop R5 through stretcher R4 and leg R3, 1 per side.'},
     ]
@@ -400,7 +397,7 @@ def main():
         {'part': 'Rear frame', 'detail': 'R2 and R3 splay %g° (saw cuts at %g°). Glue + 3 screws through R1 into each leg and through R4 into each leg.' % (LEG_SPLAY, LEG_SPLAY)},
         {'part': 'Table', 'detail': 'T2 leans %g° forward; glue + 2 × M8 to T1. Apron and boards flush at both ends.' % STRUT_LEAN},
         {'part': 'Stops', 'detail': 'T3, T4 and R5 are 38×89 offcuts with straight cuts. T3/T4 sit flush with the apron top and bottom (T3 also with its end); cut their angled face against the arm with the bench assembled in each pose. R5 lies over leg R3 at the same angle; cut its top with the bench folded so the strut lands on it.'},
-        {'part': 'Front seat', 'detail': 'F1 at %.1f° from vertical, outermost, laps F2 and the foot of F3 (glue + 3 screws each from the F1 outer face). F2 inner end cut at the same angle under F1. F3 butts under F2: glue + 2 × 6×120 down through F2 before the boards.' % ARM_LEAN},
+        {'part': 'Front seat', 'detail': 'F1 at %.1f° from vertical, outermost, laps F2 (glue + 3 screws from the F1 outer face). F2 inner end cut at the same angle under F1. F3 runs full height on the inside of F2, flush with the seat end: glue + 3 screws from the F2 outer face.' % ARM_LEAN},
         {'part': 'Pivots A, B', 'detail': 'Bore Ø18 in both members, press bushings flush with the moving faces, Ø14 sleeve, M10 tightened fully, 3 mm thrust washer.'},
         {'part': 'Lock pin', 'detail': 'Drill Ø10.5 through F1 into T1 in table pose; fold, then drill the bench hole through the same F1 hole.'},
     ]
